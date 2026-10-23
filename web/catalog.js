@@ -6,7 +6,7 @@
 const XCD = "xtreme-cd/";
 const CATALOG = [
     { group: "From the MP3 player cartridge's CD" },
-    { name: "MP3 player cartridge", what: "MP3 Player, with the cartridge plugged in; add MP3s to its card in Settings",
+    { name: "MP3 player cartridge", what: "plugs the cartridge in and installs MP3 Player; add MP3s to its card in Settings",
       app: ["mp3-cartridge/MP3.cap"], cart: true, has: "Mp3Player.app" },
 
     { group: "Applications (Xtreme Installation CD)" },

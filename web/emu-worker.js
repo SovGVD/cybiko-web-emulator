@@ -260,8 +260,14 @@ async function start(msg) {
         updating = M._emu_stage_boot(msg.boot.length) === 0;
         if (!updating) await store.del("boot");
     }
-    diskNew = !msg.disk || (msg.apps || []).length > 0;
-    for (const a of msg.apps || []) {
+    let apps = msg.apps || [];
+    const hasSoftware = () => M.UTF8ToString(M._emu_disk_list()).toLowerCase().split("\n").some(l => l.startsWith("mp3player.app\t"));
+    if (msg.cartSoftware && !hasSoftware()) {
+        log("MP3 cartridge: installing its software (MP3 Player) on the Cybiko");
+        apps = [...apps, ...msg.cartSoftware];
+    }
+    diskNew = !msg.disk || apps.length > 0;
+    for (const a of apps) {
         const name = M.stringToNewUTF8(a.name);
         M.HEAPU8.set(a.data, M._emu_scratch(a.data.length));
         const r = M._emu_disk_put(name, a.data.length);
@@ -282,8 +288,7 @@ async function start(msg) {
     if (!cardFiles) M.FS.mkdirTree("/card");
     /* auto: plugged in when the card has files or the cartridge's software
      * is on the Cybiko (it is sold with the cartridge) */
-    const hasSoftware = M.UTF8ToString(M._emu_disk_list()).toLowerCase().split("\n").some(l => l.startsWith("mp3player.app\t"));
-    const cart = settings.cart === "off" ? 0 : settings.cart === "on" || hasSoftware ? 2 : 1;
+    const cart = settings.cart === "off" ? 0 : settings.cart === "on" || hasSoftware() ? 2 : 1;
     if (!M._emu_start(msg.id24, settings.gate === false ? 0 : 1, home, cart)) {
         log("could not start the machine");
         return;

@@ -50,7 +50,7 @@ Settings also has:
 
 - **Download backup / Restore backup**: the whole RAM disk of this tab's
   Cybiko as one file (`ramdisk.bin`), to keep or move to another browser.
-- **MP3 cartridge**: a card kept in the browser. Add MP3s, MXD clips or a
+- **MP3 cartridge**: a card kept in the browser. When the cartridge is in (Settings, or files on the card) and the Cybiko lacks its software, the page installs `MP3.cap` from cybiko-roms by itself. Add MP3s, MXD clips or a
   folder (as you would copy them to the real card) and the Cybiko sees the
   cartridge after a restart, so the MP3 Player and clips play with sound.
   The cartridge's software must be on the Cybiko: `MP3.cap` from the MP3

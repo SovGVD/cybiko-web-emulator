@@ -430,14 +430,14 @@ $("add-file").onchange = () => { const list = Array.from($("add-file").files); $
 function isPack(data) {
     return data.length > 0x1b && data[0] === 0x43 && data[1] === 0x41 && data[2] === 0x50;   /* "CAP" */
 }
-function unpack(name, data) {
+function unpack(name, data, quiet) {
     const out = [];
     try {
         for (const e of Cybiko.cap.parsePack(data)) {
             if (e.type === 2) out.push({ name: Cybiko.cap.safeName(e.name), data: Cybiko.cap.decodeFile(e) });
-            else log(`files: ${name}: ${Cybiko.cap.TYPE_NAMES[e.type] || "entry"} ${e.name} is for EZ Loader on the PC; not copied`);
+            else if (!quiet) log(`files: ${name}: ${Cybiko.cap.TYPE_NAMES[e.type] || "entry"} ${e.name} is for EZ Loader on the PC; not copied`);
         }
-        log(`files: ${name} unpacked: ${out.map(f => f.name).join(", ")}`);
+        if (!quiet) log(`files: ${name} unpacked: ${out.map(f => f.name).join(", ")}`);
         const sdflash = out.find(f => f.name.toLowerCase() === "sdflash.dl");
         const inf = sdflash && Cybiko.cap.cyEntries(sdflash.data).find(e => e.name === "root.inf" && e.data);
         if (inf && /^21\.1\.3\r?$/m.test(Cybiko.util.latin1(inf.data)))
@@ -622,9 +622,27 @@ async function boot(apps) {
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
     const card = await store.get("card") || [];
-    worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [], card,
+    const cartSoftware = settings.cart === "on" || (settings.cart !== "off" && card.length) ? await mp3Software() : null;
+    worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [], card, cartSoftware,
                          boot: slot === 1 && boot ? boot : null, slot,
                          diskSize: settings.disk << 20, id24, settings });
+}
+
+/* The MP3 cartridge's software (MP3.cap from its CD, in cybiko-roms),
+ * fetched once and kept; the worker installs it when the cartridge is in
+ * and the Cybiko does not have it yet, as the cartridge's CD would. */
+async function mp3Software() {
+    let cap = await store.get("mp3cap");
+    if (!cap) {
+        try {
+            cap = await fetchFile("mp3-cartridge/MP3.cap");
+            await store.set("mp3cap", cap);
+        } catch (e) {
+            log(`MP3 cartridge: could not fetch its software (${e.message}); it is installed on a later start`);
+            return null;
+        }
+    }
+    return unpack("MP3.cap", cap, true);
 }
 
 /* Saves, then powers the Cybiko off and on again (with new files). */
@@ -663,7 +681,10 @@ function onWorker(e) {
     case "put":
         log(`files: ${m.name} ${m.ok ? "is on the Cybiko" : "not copied: " + m.why}`);
         putDone.push(m.ok ? m.name : `${m.name} (not copied: ${m.why})`);
-        notice(`On the Cybiko: ${putDone.join(", ")}. Apps appear at the end of the Main desktop once CyOS has started.`, 20000);
+        /* the libraries and icons that come with apps are in the log only */
+        const shown = putDone.filter(n => !/\.(dl|ico)\b/i.test(n));
+        if (shown.length)
+            notice(`On the Cybiko: ${shown.join(", ")}. Apps appear at the end of the Main desktop once CyOS has started.`, 20000);
         break;
     case "files": {
         onCybiko = new Set(m.list.map(f => f.name.toLowerCase()));
