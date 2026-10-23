@@ -302,6 +302,100 @@ $("zip-file").onchange = async () => {
     }
     checkSetup();
 };
+/* ---- files from cybiko-roms (SITE.files): the dumps with one click, and
+ * the CD software list ---- */
+
+async function fetchFile(path) {
+    const r = await fetch(SITE.files + path.split("/").map(encodeURIComponent).join("/"));
+    if (!r.ok) throw new Error(`${path}: ${r.status} ${r.statusText}`);
+    return new Uint8Array(await r.arrayBuffer());
+}
+
+$("quick-btn").onclick = async () => {
+    const ru = $("quick-ru").checked;
+    $("quick-btn").disabled = true;
+    $("quick-ok").textContent = "fetching the firmware…";
+    try {
+        const [rom, flash, upd] = await Promise.all(["xtreme/cyrom150.bin", "xtreme/cyos_v1508.bin",
+            ...(ru ? ["cyos-updates/ccyphRU1.5.08r.boot"] : [])].map(fetchFile));
+        if (rom.length !== 0x8000 || flash.length !== 0x80000) throw new Error("the files are not the right size");
+        await store.set("rom", rom);
+        await store.set("flash", flash);
+        if (upd) await store.set("boot", upd);
+        log(`setup: boot ROM and CyOS 1.5.08 fetched from ${SITE.filesPage}${upd ? ", with the Russian CyOS update" : ""}`);
+        $("quick-ok").textContent = "";
+        $("setup").hidden = true;
+        audioOn();
+        boot();
+    } catch (e) {
+        log(`setup: could not fetch the firmware (${e.message})`);
+        $("quick-ok").textContent = `Could not fetch it (${e.message}). Try again, or use your own files below.`;
+        $("own-files").open = true;
+    }
+    $("quick-btn").disabled = false;
+};
+
+let onCybiko = new Set();              /* names on the RAM disk, lower case, from the last file list */
+function showCatalog() {
+    const box = $("catalog");
+    box.textContent = "";
+    CATALOG.forEach((c, i) => {
+        if (c.group) {
+            const h = document.createElement("h3");
+            h.textContent = c.group;
+            box.appendChild(h);
+            return;
+        }
+        const has = (c.has || c.app[0].split("/").pop()).toLowerCase();
+        const label = document.createElement("label");
+        const box1 = document.createElement("input");
+        box1.type = "checkbox";
+        box1.dataset.i = i;
+        box1.onchange = () => {
+            const n = box.querySelectorAll("input:checked").length;
+            $("install-btn").disabled = !n;
+            $("install-btn").textContent = n > 1 ? `Install ${n}` : "Install";
+        };
+        const name = document.createElement("span");
+        name.textContent = c.name;
+        label.append(box1, name);
+        if (c.what) { const w = document.createElement("span"); w.className = "what"; w.textContent = c.what; label.append(w); }
+        if (onCybiko.has(has)) { const w = document.createElement("span"); w.className = "have"; w.textContent = "on the Cybiko"; label.append(w); }
+        box.appendChild(label);
+    });
+}
+$("software").addEventListener("toggle", () => { if ($("software").open) showCatalog(); });
+
+$("install-btn").onclick = async () => {
+    const picked = Array.from($("catalog").querySelectorAll("input:checked")).map(b => CATALOG[+b.dataset.i]);
+    if (!picked.length || !worker) return;
+    $("install-btn").disabled = true;
+    const files = [];
+    try {
+        let done = 0;
+        for (const c of picked) {
+            $("install-ok").textContent = `fetching ${c.name} (${++done} of ${picked.length})…`;
+            for (const path of c.app) files.push({ name: path.split("/").pop(), data: await fetchFile(path) });
+        }
+    } catch (e) {
+        log(`files: could not fetch (${e.message}); nothing installed`);
+        $("install-ok").textContent = `Could not fetch it (${e.message}). Nothing was installed; try again.`;
+        $("install-btn").disabled = false;
+        return;
+    }
+    if (picked.some(c => c.cart) && settings.cart !== "on") {
+        settings.cart = "on";                /* plugged in even with nothing on the card yet */
+        fillSettings();
+        await store.set("settings", settings);
+        log("settings: MP3 cartridge plugged in");
+    }
+    log(`files: installing ${picked.map(c => c.name).join(", ")} from ${SITE.filesPage}`);
+    $("install-ok").textContent = "";
+    for (const b of $("catalog").querySelectorAll("input:checked")) b.checked = false;
+    $("install-btn").textContent = "Install";
+    addFiles(files);
+};
+
 $("rom-file").onchange = async () => { pending.rom = await readFile($("rom-file")); checkSetup(); };
 $("flash-file").onchange = async () => { pending.flash = await readFile($("flash-file")); checkSetup(); };
 $("boot-file").onchange = async () => { pending.boot = await readFile($("boot-file")); checkSetup(); };
@@ -525,6 +619,8 @@ function onWorker(e) {
         notice(`On the Cybiko: ${putDone.join(", ")}. Apps appear at the end of the Main desktop once CyOS has started.`, 20000);
         break;
     case "files": {
+        onCybiko = new Set(m.list.map(f => f.name.toLowerCase()));
+        if ($("software").open) showCatalog();
         const ul = $("file-list");
         ul.textContent = "";
         for (const f of m.list) {

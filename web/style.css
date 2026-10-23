@@ -100,3 +100,11 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
 .guide summary { cursor: pointer; font-weight: 600; }
 .guide ul { padding-left: 20px; }
 .guide li { margin: 6px 0; line-height: 1.4; }
+button.primary { background: #3d6a86; border-color: #5b8aa6; font-weight: 600; padding: 8px 18px; }
+#own-files { margin-top: 16px; }
+#own-files summary, #software summary { cursor: pointer; }
+#catalog h3 { font-size: 14px; color: var(--muted); margin: 14px 0 4px; font-weight: 600; }
+#catalog label { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; }
+#catalog .what { color: var(--muted); font-size: 13px; }
+#catalog .have { color: #7fbf7f; font-size: 13px; }
+#catalog label > span:nth-child(2) { white-space: nowrap; }

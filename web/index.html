@@ -15,23 +15,24 @@
   </header>
 
   <section id="setup" hidden>
-    <h2>Load your Cybiko Xtreme dumps</h2>
-    <p>The emulator needs two files from a Cybiko Xtreme. This site does not host them: pick your own copies.
-      They stay in this browser and are never uploaded.</p>
-    <ol class="steps">
-      <li><b>Boot ROM</b>, <code>cyrom150.bin</code> (32 KB), and <b>flash</b> with CyOS 1.5.08,
-        <code>cyos_v1508.bin</code> (512 KB). Both are in MAME's Cybiko ROM set (<code>cybikov1.zip</code>,
-        listed for example on <a href="https://www.planetemu.net/rom/mame-roms/cybikoxt">Planet Emulation</a>),
-        and kept in <a href="https://github.com/SovGVD/cybiko-roms/tree/main/xtreme">cybiko-roms</a>.
-        Pick the zip and the page takes the two files out of it, or pick them one by one.</li>
-      <li>Optional: a <b>CyOS update</b> (<code>*.boot</code>, such as the Russian CyOS 1.5.08), installed on start.</li>
-    </ol>
-    <p class="row"><label>MAME zip <input id="zip-file" type="file" accept=".zip"></label> <span id="zip-ok"></span></p>
-    <p class="row"><label>Boot ROM <input id="rom-file" type="file"></label> <span id="rom-ok"></span></p>
-    <p class="row"><label>Flash <input id="flash-file" type="file"></label> <span id="flash-ok"></span></p>
-    <p class="row"><label>CyOS update, optional
-      <input id="boot-file" type="file" accept=".boot"></label> <span id="boot-ok"></span></p>
-    <p class="row"><button id="start-btn" type="button" disabled>Start</button></p>
+    <h2>Start your Cybiko Xtreme</h2>
+    <p>The emulator runs the Cybiko's own firmware: its boot ROM and CyOS 1.5.08. One click fetches both from
+      <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this browser keeps them.</p>
+    <p class="row"><label><input id="quick-ru" type="checkbox"> Russian CyOS 1.5.08 (menus in Russian, Cyrillic keyboard)</label></p>
+    <p class="row"><button id="quick-btn" type="button" class="primary">Start the Cybiko</button>
+      <span id="quick-ok"></span></p>
+    <details id="own-files">
+      <summary>Use my own files instead</summary>
+      <p>Pick the <b>boot ROM</b>, <code>cyrom150.bin</code> (32 KB), and the <b>flash</b>,
+        <code>cyos_v1508.bin</code> (512 KB), or MAME's Cybiko ROM set (<code>cybikov1.zip</code>), from which the page
+        takes those two. A <b>CyOS update</b> (<code>*.boot</code>) is optional and installed on start. Nothing is uploaded.</p>
+      <p class="row"><label>MAME zip <input id="zip-file" type="file" accept=".zip"></label> <span id="zip-ok"></span></p>
+      <p class="row"><label>Boot ROM <input id="rom-file" type="file"></label> <span id="rom-ok"></span></p>
+      <p class="row"><label>Flash <input id="flash-file" type="file"></label> <span id="flash-ok"></span></p>
+      <p class="row"><label>CyOS update, optional
+        <input id="boot-file" type="file" accept=".boot"></label> <span id="boot-ok"></span></p>
+      <p class="row"><button id="start-btn" type="button" disabled>Start</button></p>
+    </details>
   </section>
 
   <section id="machine" hidden>
@@ -43,28 +44,19 @@
     <p class="hint">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
       F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins, F11 = Menu, F12 = On/Off,
       [ ] = ( ), / = !. Drop <code>.app</code> or other files on the page (or use Add files) to put them on the Cybiko; it restarts to take them.</p>
-    <details class="guide">
-      <summary>Where to get apps, games and the MP3 player</summary>
-      <p><a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> keeps a copy of all of it: the dumps, both
-        CDs, the MP3 cartridge software and clips, and the Russian CyOS.</p>
-      <ul>
-        <li><b>Games and apps</b> (<code>.app</code>, with their <code>.dat</code> or other files if they have any): the
-          <a href="https://mirror.jcx.life/cybiko/">cybiko.net download mirror</a>,
-          <a href="https://archive.org/details/cybiko">Kerry Brown's archive</a> and
-          <a href="https://archive.org/details/cybiko-applications-games-and-install-cd">Jake Kussmaul's collection</a>
-          on the Internet Archive. Drop them on the page or use <b>Add files to the Cybiko</b>. They appear at the
-          end of the Main desktop after the restart.</li>
-        <li><b>Installers</b> (<code>.cap</code>, <code>.csu</code>) from the
-          <a href="https://archive.org/details/CybikoXtremeInstallationCD">Xtreme Installation CD</a>, such as CyRecord,
-          CyTalk or E-mail: add them the same way. The page unpacks them, as EZ Loader did.</li>
-        <li><b>The MP3 cartridge</b> needs its software on the Cybiko: <code>MP3.cap</code> from the
-          <i>MP3 player cartridge's own CD</i> (<a href="https://github.com/SovGVD/cybiko-roms/tree/main/mp3-cartridge">here</a>),
-          added with <b>Add files to the Cybiko</b>. The <code>MP3.cap</code> on the Xtreme Installation CD is an older
-          version that never finds the card. Then put MP3s and MXD clips on the card in
-          <b>Settings &rarr; MP3 cartridge</b>. "MP3 Player" appears on the desktop; in it, Menu opens the song list.</li>
-        <li>Everything on the Cybiko is in <b>Settings &rarr; Files on the Cybiko</b>, and
-          <b>Download backup</b> saves all of it in one file.</li>
-      </ul>
+    <details id="software" class="guide">
+      <summary>Get apps, games and the MP3 player</summary>
+      <p>Tick what you want and press Install: the files come from
+        <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a>, copies of the Cybiko CDs. The Cybiko restarts
+        to take them, and new apps appear at the end of the Main desktop.</p>
+      <div id="catalog"></div>
+      <p class="row"><button id="install-btn" type="button" class="primary" disabled>Install</button>
+        <span id="install-ok"></span></p>
+      <p class="note">More games and apps: the <a href="https://mirror.jcx.life/cybiko/">cybiko.net mirror</a>,
+        <a href="https://archive.org/details/cybiko">Kerry Brown's archive</a> and
+        <a href="https://archive.org/details/cybiko-applications-games-and-install-cd">Jake Kussmaul's collection</a>.
+        Download them, then drop them on the page or use <b>Add files to the Cybiko</b>; <code>.cap</code> and
+        <code>.csu</code> installers are unpacked. Everything on the Cybiko is in Settings &rarr; Files on the Cybiko.</p>
     </details>
   </section>
 
@@ -131,6 +123,7 @@
 <script src="lib/util.js"></script>
 <script src="lib/bzip2.js"></script>
 <script src="lib/cap.js"></script>
+<script src="catalog.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

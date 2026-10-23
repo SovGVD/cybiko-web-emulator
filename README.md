@@ -20,16 +20,21 @@ WebAssembly. Both are submodules in `deps/`.
 ## Using it
 
 1. Open the page (GitHub Pages, or your own copy, see below).
-2. Pick your **boot ROM** (32 KB, `cyrom150.bin`) and **flash** (512 KB,
-   `cyos_v1508.bin`) dumps, or MAME's Cybiko ROM set (`cybikov1.zip`), from
-   which the page takes those two. The site does not host them; they are kept in
-   your browser (IndexedDB) and never uploaded. A CyOS update (`*.boot`, such
-   as the Russian 1.5.08) can be picked too and is installed on start.
+2. Press **Start the Cybiko**. The page fetches the boot ROM (`cyrom150.bin`)
+   and flash (`cyos_v1508.bin`, CyOS 1.5.08) from
+   [cybiko-roms](https://github.com/SovGVD/cybiko-roms) (`SITE.files` in
+   `web/config.js`) and keeps them in your browser (IndexedDB); tick Russian
+   CyOS to get the Russian 1.5.08 update too. "Use my own files instead"
+   takes your own dumps, MAME's Cybiko set (`cybikov1.zip`) or a `*.boot`
+   update; nothing is uploaded.
 3. CyOS boots. Keys: the on-screen keyboard (Shift and Fn latch: tap them,
    then the key) or the PC keyboard: letters, Enter, Esc, Space, arrows, Tab,
    Backspace = Del, Shift, Ctrl = Fn, F1-F7, F8/Home = Select, F9 = Help,
    F10/Insert = Ins, F11 = Menu, F12 = On/Off, `[` `]` = `(` `)`, `/` = `!`.
-4. Drop `.app` (or any) files on the page, or tap "Add files to the Cybiko", to put them on the Cybiko: it saves
+4. **Get apps, games and the MP3 player** (under the keyboard) lists the
+   software from the Cybiko CDs in cybiko-roms: tick, Install, and the
+   Cybiko restarts with it. The MP3 player entry also plugs the cartridge in.
+5. Drop `.app` (or any) files on the page, or tap "Add files to the Cybiko", to put them on the Cybiko: it saves
    and restarts (CyOS reads its disk only at power-on), and a note above the
    screen says what was copied. Apps appear at the end of the Main desktop.
 
