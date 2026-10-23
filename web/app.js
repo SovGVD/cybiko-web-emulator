@@ -37,7 +37,7 @@ $("log-box").addEventListener("toggle", showLog);
 /* ---- settings ---- */
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
-                   disk: 4, volume: 60, zoom: 0, cart: "auto" };
+                   disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
@@ -57,13 +57,14 @@ function fillSettings() {
     $("set-volume").value = String(settings.volume);
     $("set-zoom").value = String(settings.zoom);
     $("set-cart").value = settings.cart;
+    $("set-cart-soft").checked = settings.cartSoft;
 }
 
 function readSettings() {
     return { proxy: $("set-proxy").value.trim(), room: $("set-room").value.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) || "public",
              online: $("set-online").checked, gate: $("set-gate").checked, home: $("set-home").value.trim(),
              disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
-             cart: $("set-cart").value };
+             cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked };
 }
 
 $("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
@@ -622,7 +623,7 @@ async function boot(apps) {
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
     const card = await store.get("card") || [];
-    const cartSoftware = settings.cart === "on" || (settings.cart !== "off" && card.length) ? await mp3Software() : null;
+    const cartSoftware = settings.cartSoft && (settings.cart === "on" || (settings.cart !== "off" && card.length)) ? await mp3Software() : null;
     worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [], card, cartSoftware,
                          boot: slot === 1 && boot ? boot : null, slot,
                          diskSize: settings.disk << 20, id24, settings });
