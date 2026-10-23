@@ -347,7 +347,7 @@ function unpack(name, data) {
         const sdflash = out.find(f => f.name.toLowerCase() === "sdflash.dl");
         const inf = sdflash && Cybiko.cap.cyEntries(sdflash.data).find(e => e.name === "root.inf" && e.data);
         if (inf && /^21\.1\.3\r?$/m.test(Cybiko.util.latin1(inf.data)))
-            log(`files: ${name} has the older MP3 cartridge software (sdflash.dl 21.1.3, as on the Xtreme CD): ` +
+            log(`files: ${name} has the older MP3 cartridge software (sdflash.dl 21.1.3, the MP3.cap on the Xtreme Installation CD): ` +
                 "it stops after reading the card's size and the card never shows up. MP3.cap from the MP3 cartridge's CD (21.1.4) works.");
     } catch (e) {
         log(`files: ${name} could not be unpacked (${e.message}); not copied`);

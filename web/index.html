@@ -21,8 +21,9 @@
     <ol class="steps">
       <li><b>Boot ROM</b>, <code>cyrom150.bin</code> (32 KB), and <b>flash</b> with CyOS 1.5.08,
         <code>cyos_v1508.bin</code> (512 KB). Both are in MAME's Cybiko ROM set (<code>cybikov1.zip</code>,
-        listed for example on <a href="https://www.planetemu.net/rom/mame-roms/cybikoxt">Planet Emulation</a>).
-        Pick the zip itself and the page takes the two files out of it, or pick them one by one.</li>
+        listed for example on <a href="https://www.planetemu.net/rom/mame-roms/cybikoxt">Planet Emulation</a>),
+        and kept in <a href="https://github.com/SovGVD/cybiko-roms/tree/main/xtreme">cybiko-roms</a>.
+        Pick the zip and the page takes the two files out of it, or pick them one by one.</li>
       <li>Optional: a <b>CyOS update</b> (<code>*.boot</code>, such as the Russian CyOS 1.5.08), installed on start.</li>
     </ol>
     <p class="row"><label>MAME zip <input id="zip-file" type="file" accept=".zip"></label> <span id="zip-ok"></span></p>
@@ -44,6 +45,8 @@
       [ ] = ( ), / = !. Drop <code>.app</code> or other files on the page (or use Add files) to put them on the Cybiko; it restarts to take them.</p>
     <details class="guide">
       <summary>Where to get apps, games and the MP3 player</summary>
+      <p><a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> keeps a copy of all of it: the dumps, both
+        CDs, the MP3 cartridge software and clips, and the Russian CyOS.</p>
       <ul>
         <li><b>Games and apps</b> (<code>.app</code>, with their <code>.dat</code> or other files if they have any): the
           <a href="https://mirror.jcx.life/cybiko/">cybiko.net download mirror</a>,
@@ -55,8 +58,9 @@
           <a href="https://archive.org/details/CybikoXtremeInstallationCD">Xtreme Installation CD</a>, such as CyRecord,
           CyTalk or E-mail: add them the same way. The page unpacks them, as EZ Loader did.</li>
         <li><b>The MP3 cartridge</b> needs its software on the Cybiko: <code>MP3.cap</code> from the
-          <i>MP3 player cartridge's own CD</i>, added with <b>Add files to the Cybiko</b>. The MP3Soft pack on the Xtreme
-          CD is an older version that never finds the card. Then put MP3s and MXD clips on the card in
+          <i>MP3 player cartridge's own CD</i> (<a href="https://github.com/SovGVD/cybiko-roms/tree/main/mp3-cartridge">here</a>),
+          added with <b>Add files to the Cybiko</b>. The <code>MP3.cap</code> on the Xtreme Installation CD is an older
+          version that never finds the card. Then put MP3s and MXD clips on the card in
           <b>Settings &rarr; MP3 cartridge</b>. "MP3 Player" appears on the desktop; in it, Menu opens the song list.</li>
         <li>Everything on the Cybiko is in <b>Settings &rarr; Files on the Cybiko</b>, and
           <b>Download backup</b> saves all of it in one file.</li>

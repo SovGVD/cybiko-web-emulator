@@ -49,9 +49,12 @@ Settings also has:
   folder (as you would copy them to the real card) and the Cybiko sees the
   cartridge after a restart, so the MP3 Player and clips play with sound.
   The cartridge's software must be on the Cybiko: `MP3.cap` from the MP3
-  cartridge's own CD (`sdflash.dl` 21.1.4). The MP3Soft pack on the Xtreme CD
-  (`sdflash.dl` 21.1.3) stops after reading the card's size and never shows
-  the card; the Log says so when one is added.
+  cartridge's own CD (`sdflash.dl` 21.1.4). The `MP3.cap` on the Xtreme
+  Installation CD (`sdflash.dl` 21.1.3) stops after reading the card's size and
+  never shows the card; the Log says so when one is added.
+
+A copy of the dumps, both CDs and the cartridge software is kept in
+[cybiko-roms](https://github.com/SovGVD/cybiko-roms).
 - **Files on the Cybiko**: the list; click a file to download it.
 
 The clock runs on your computer's time (CyOS shows the year as 2002-2005:
