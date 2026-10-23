@@ -108,3 +108,5 @@ button.primary { background: #3d6a86; border-color: #5b8aa6; font-weight: 600; p
 #catalog .what { color: var(--muted); font-size: 13px; }
 #catalog .have { color: #7fbf7f; font-size: 13px; }
 #catalog label > span:nth-child(2) { white-space: nowrap; }
+button.small { padding: 1px 8px; font-size: 12px; margin-left: 6px; }
+#card-list li { margin: 3px 0; }

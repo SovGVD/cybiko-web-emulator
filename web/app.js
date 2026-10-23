@@ -509,9 +509,26 @@ async function showCard() {
     ul.textContent = "";
     for (const f of card) {
         const li = document.createElement("li");
-        li.textContent = `${f.path} (${f.data.length} bytes)`;
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "small";
+        del.textContent = "Delete";
+        del.title = `Take ${f.path} off the card`;
+        del.onclick = () => deleteFromCard(f.path);
+        li.append(`${f.path} (${f.data.length} bytes) `, del);
         ul.appendChild(li);
     }
+}
+
+/* CyOS cannot delete files on the card (its driver stops with "The file is
+ * not found" before writing anything, and what it writes would only last
+ * until a restart anyway): the card's files are deleted here. */
+async function deleteFromCard(path) {
+    const card = await store.get("card") || [];
+    await store.set("card", card.filter(f => f.path !== path));
+    log(`card: ${path} deleted`);
+    showCard();
+    if (worker) restart();
 }
 
 /* Cybiko software put on the card by an older version of this page (or by
