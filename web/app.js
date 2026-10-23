@@ -276,18 +276,25 @@ let dragDepth = 0;
 window.addEventListener("dragenter", e => { e.preventDefault(); if (worker && !dragDepth++) $("drop").hidden = false; });
 window.addEventListener("dragleave", e => { e.preventDefault(); if (!--dragDepth) $("drop").hidden = true; });
 window.addEventListener("dragover", e => e.preventDefault());
-window.addEventListener("drop", async e => {
+window.addEventListener("drop", e => {
     e.preventDefault();
     dragDepth = 0;
     $("drop").hidden = true;
+    addFiles(Array.from(e.dataTransfer.files));   /* taken now: the list is gone after the event */
+});
+/* the same through a file picker (phones have no drag and drop) */
+$("add-btn").onclick = () => $("add-file").click();
+$("add-file").onchange = () => { const list = Array.from($("add-file").files); $("add-file").value = ""; addFiles(list); };
+
+async function addFiles(files) {
     if (!worker) return;
     const apps = [];
-    for (const f of e.dataTransfer.files) {
+    for (const f of files) {
         if (f.name.length > 58) { log(`files: ${f.name}: name too long for CyOS (58 at most); not copied`); continue; }
         apps.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
     }
     if (apps.length) restart(apps);
-});
+}
 
 /* ---- the worker ---- */
 

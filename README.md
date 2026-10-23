@@ -28,7 +28,7 @@ WebAssembly. Both are submodules in `deps/`.
    then the key) or the PC keyboard: letters, Enter, Esc, Space, arrows, Tab,
    Backspace = Del, Shift, Ctrl = Fn, F1-F7, F8/Home = Select, F9 = Help,
    F10/Insert = Ins, F11 = Menu, F12 = On/Off, `[` `]` = `(` `)`, `/` = `!`.
-4. Drop `.app` (or any) files on the page to put them on the Cybiko: it saves
+4. Drop `.app` (or any) files on the page, or tap "Add files to the Cybiko", to put them on the Cybiko: it saves
    and restarts, like the board copying `apps/` at power-on.
 
 The RAM disk (4 MB by default, Settings) and a reprogrammed flash are saved
