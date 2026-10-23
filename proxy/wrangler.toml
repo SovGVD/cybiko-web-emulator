@@ -1,0 +1,18 @@
+# Cloudflare Worker for the Cybiko web emulator: the gate's internet proxy
+# and the radio relay. Deploy with `npx wrangler deploy` in this folder (see
+# README.md). Free plan is enough.
+name = "cybiko-relay"
+main = "worker.mjs"
+compatibility_date = "2026-01-01"
+
+[vars]
+# Pages allowed to use the proxy (comma separated); empty = any page.
+ALLOW_ORIGINS = "https://sovgvd.github.io,http://localhost:8080,http://127.0.0.1:8080"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]

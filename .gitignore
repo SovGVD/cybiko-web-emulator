@@ -1,0 +1,4 @@
+web/emu.js
+web/emu.wasm
+node_modules/
+proxy/.wrangler/

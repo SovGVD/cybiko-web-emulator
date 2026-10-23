@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Cybiko Xtreme emulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Cybiko Xtreme</h1>
+    <span id="status" class="status">not started</span>
+    <button id="settings-btn" type="button">Settings</button>
+  </header>
+
+  <section id="setup" hidden>
+    <h2>Load your Cybiko Xtreme dumps</h2>
+    <p>The emulator needs the Xtreme's <b>boot ROM</b> (32 KB, such as <code>cyrom150.bin</code>) and
+      <b>flash</b> (512 KB, such as <code>cyos_v1508.bin</code>). They are not on this site: pick your own
+      files. They stay in this browser and are never uploaded.</p>
+    <p class="row"><label>Boot ROM <input id="rom-file" type="file"></label> <span id="rom-ok"></span></p>
+    <p class="row"><label>Flash <input id="flash-file" type="file"></label> <span id="flash-ok"></span></p>
+    <p class="row"><label>CyOS update, optional (<code>*.boot</code>, such as the Russian 1.5.08)
+      <input id="boot-file" type="file" accept=".boot"></label> <span id="boot-ok"></span></p>
+    <p class="row"><button id="start-btn" type="button" disabled>Start</button></p>
+  </section>
+
+  <section id="machine" hidden>
+    <div id="screen-wrap"><canvas id="screen" width="160" height="100"></canvas></div>
+    <div id="keyboard"></div>
+    <p class="hint">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
+      F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins, F11 = Menu, F12 = On/Off,
+      [ ] = ( ), / = !. Drop <code>.app</code> files on the page to install them.</p>
+  </section>
+
+  <section id="settings" hidden>
+    <h2>Settings</h2>
+    <p class="row"><label>Proxy and radio relay URL
+      <input id="set-proxy" type="url" placeholder="https://cybiko-relay.example.workers.dev"></label></p>
+    <p class="note">Gives the CyWIG gate its internet and links this Cybiko to others in the same room.
+      Empty: no internet, radio only between tabs of this browser.</p>
+    <p class="row"><label>Radio room <input id="set-room" type="text" placeholder="public"></label></p>
+    <p class="note">Cybikos in the same room hear each other (Chat, games). Tabs of this browser share it
+      without the relay.</p>
+    <p class="row"><label><input id="set-online" type="checkbox"> Join the room over the relay</label></p>
+    <p class="row"><label><input id="set-gate" type="checkbox"> CyWIG gate (internet for the Browser app
+      and the WAP browser)</label></p>
+    <p class="row"><label>Gate home page <input id="set-home" type="url" placeholder="(the gate's own)"></label></p>
+    <p class="row"><label>RAM disk <select id="set-disk">
+      <option value="1">1 MB</option><option value="2">2 MB</option><option value="4">4 MB</option>
+      <option value="6">6 MB</option></select></label></p>
+    <p class="row"><label>Volume <input id="set-volume" type="range" min="0" max="100"></label></p>
+    <p class="row"><label>Zoom <select id="set-zoom">
+      <option value="0">Fit</option><option value="1">1x</option><option value="2">2x</option>
+      <option value="3">3x</option><option value="4">4x</option><option value="5">5x</option>
+      <option value="6">6x</option></select></label></p>
+    <p class="row">
+      <button id="set-save" type="button">Save and restart</button>
+      <button id="set-close" type="button">Close</button>
+      <button id="set-files" type="button">Files on the Cybiko</button>
+      <button id="set-forget" type="button" class="danger">Forget everything</button>
+    </p>
+    <ul id="file-list"></ul>
+  </section>
+
+  <details id="log-box">
+    <summary>Log</summary>
+    <pre id="log"></pre>
+  </details>
+  <footer>
+    <a href="https://github.com/SovGVD/cybiko-web-emulator">Source</a> ·
+    machine from <a href="https://github.com/SovGVD/Dragonfruit-JC4827W543-esp32">Dragonfruit</a>,
+    gate from <a href="https://github.com/SovGVD/cybiko-browser">cybiko-browser</a>
+  </footer>
+</main>
+<div id="drop" hidden>Drop .app files to install them</div>
+<script src="config.js"></script>
+<script src="idb.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+[submodule "deps/dragonfruit"]
+	path = deps/dragonfruit
+	url = https://github.com/SovGVD/Dragonfruit-JC4827W543-esp32.git
+[submodule "deps/cybiko-browser"]
+	path = deps/cybiko-browser
+	url = https://github.com/SovGVD/cybiko-browser.git
