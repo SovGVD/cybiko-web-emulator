@@ -37,7 +37,7 @@ $("log-box").addEventListener("toggle", showLog);
 /* ---- settings ---- */
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
-                   disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true };
+                   disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true, vsync: true };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
@@ -58,13 +58,15 @@ function fillSettings() {
     $("set-zoom").value = String(settings.zoom);
     $("set-cart").value = settings.cart;
     $("set-cart-soft").checked = settings.cartSoft;
+    $("set-vsync").checked = settings.vsync;
 }
 
 function readSettings() {
     return { proxy: $("set-proxy").value.trim(), room: $("set-room").value.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) || "public",
              online: $("set-online").checked, gate: $("set-gate").checked, home: $("set-home").value.trim(),
              disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
-             cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked };
+             cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked,
+             vsync: $("set-vsync").checked };
 }
 
 $("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
