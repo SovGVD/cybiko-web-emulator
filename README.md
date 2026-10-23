@@ -54,7 +54,7 @@ packets, framed with a tab id and sequence number (9 bytes, then the 50- or
 A packet heard both ways is taken once. Rooms are like being in range of each
 other: everyone in a room hears everyone else, nobody else hears them. The
 default room is `public`. Real Cybikos are out of reach (their air protocol
-is unknown); Dragonfruit boards could join through a bridge later.
+is unknown). The emulator is standalone: it does not talk to Dragonfruit boards.
 
 ## Internet: the gate and the proxy
 
@@ -123,7 +123,6 @@ every push to `main`. Turn it on once in Settings -> Pages -> Source:
 - The MP3 cartridge (the board has it; here it needs a decoder in the page).
 - The beeper is a plain square wave (no duty cycle).
 - The clock shows 12:00am, 2000 after the first-run setup until it is set in CyOS.
-- A bridge from the relay to Dragonfruit boards over ESP-NOW.
 
 ## License
 
