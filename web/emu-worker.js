@@ -287,6 +287,13 @@ async function start(msg) {
     setInterval(status, 2000);
     postMessage({ t: "started" });
     files();
+    if (cart === 2 || (cart === 1 && cardFiles)) {
+        const names = M.UTF8ToString(M._emu_disk_list()).split("\n").map(l => l.split("\t")[0].toLowerCase());
+        const need = ["sddisk.dl", "sdflash.dl", "mp3player.app"].filter(n => !names.includes(n));
+        if (need.length)
+            log(`MP3 cartridge: its software is not on the Cybiko (no ${need.join(", ")}), so CyOS will not see the card. ` +
+                "Add MP3.cap from the MP3 cartridge's CD with \"Add files to the Cybiko\".");
+    }
 }
 
 function files() {

@@ -94,3 +94,9 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
     .hint { display: none; }
     .status { order: 3; flex-basis: 100%; }
 }
+.steps { padding-left: 20px; }
+.steps li { margin: 6px 0; }
+.guide { margin: 12px 0; }
+.guide summary { cursor: pointer; font-weight: 600; }
+.guide ul { padding-left: 20px; }
+.guide li { margin: 6px 0; line-height: 1.4; }

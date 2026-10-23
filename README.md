@@ -21,7 +21,8 @@ WebAssembly. Both are submodules in `deps/`.
 
 1. Open the page (GitHub Pages, or your own copy, see below).
 2. Pick your **boot ROM** (32 KB, `cyrom150.bin`) and **flash** (512 KB,
-   `cyos_v1508.bin`) dumps. The site does not host them; they are kept in
+   `cyos_v1508.bin`) dumps, or MAME's Cybiko ROM set (`cybikov1.zip`), from
+   which the page takes those two. The site does not host them; they are kept in
    your browser (IndexedDB) and never uploaded. A CyOS update (`*.boot`, such
    as the Russian 1.5.08) can be picked too and is installed on start.
 3. CyOS boots. Keys: the on-screen keyboard (Shift and Fn latch: tap them,
@@ -32,6 +33,14 @@ WebAssembly. Both are submodules in `deps/`.
    and restarts (CyOS reads its disk only at power-on), and a note above the
    screen says what was copied. Apps appear at the end of the Main desktop.
 
+EZ Loader installers (`.cap`, `.csu`, such as those on the
+[Xtreme Installation CD](https://archive.org/details/CybikoXtremeInstallationCD))
+are unpacked as they are added. Games and apps: the
+[cybiko.net mirror](https://mirror.jcx.life/cybiko/) and the Internet
+Archive ([1](https://archive.org/details/cybiko),
+[2](https://archive.org/details/cybiko-applications-games-and-install-cd)).
+The page has the same guide under the keyboard.
+
 Settings also has:
 
 - **Download backup / Restore backup**: the whole RAM disk of this tab's
@@ -39,6 +48,10 @@ Settings also has:
 - **MP3 cartridge**: a card kept in the browser. Add MP3s, MXD clips or a
   folder (as you would copy them to the real card) and the Cybiko sees the
   cartridge after a restart, so the MP3 Player and clips play with sound.
+  The cartridge's software must be on the Cybiko: `MP3.cap` from the MP3
+  cartridge's own CD (`sdflash.dl` 21.1.4). The MP3Soft pack on the Xtreme CD
+  (`sdflash.dl` 21.1.3) stops after reading the card's size and never shows
+  the card; the Log says so when one is added.
 - **Files on the Cybiko**: the list; click a file to download it.
 
 The clock runs on your computer's time (CyOS shows the year as 2002-2005:
@@ -129,6 +142,7 @@ every push to `main`. Turn it on once in Settings -> Pages -> Source:
 | `src/net_web.c` | the gate's network (`cyb_net_t`) over the page's `fetch()` |
 | `web/emu-worker.js` | runs the emulator in a worker (keeps going in background tabs), radio, saving |
 | `web/app.js` | the page: dumps, screen, keys, sound, files, settings |
+| `web/lib/` | `.cap` unpacking (bzip2, CyOS archives), copied from [cybiko-docs](https://github.com/SovGVD/cybiko-docs)' converters page |
 | `proxy/core.mjs` | the proxy, shared by `worker.mjs` (Cloudflare) and `local.mjs` (Node) |
 | `deps/dragonfruit`, `deps/cybiko-browser` | the C, as submodules |
 

@@ -16,12 +16,19 @@
 
   <section id="setup" hidden>
     <h2>Load your Cybiko Xtreme dumps</h2>
-    <p>The emulator needs the Xtreme's <b>boot ROM</b> (32 KB, such as <code>cyrom150.bin</code>) and
-      <b>flash</b> (512 KB, such as <code>cyos_v1508.bin</code>). They are not on this site: pick your own
-      files. They stay in this browser and are never uploaded.</p>
+    <p>The emulator needs two files from a Cybiko Xtreme. This site does not host them: pick your own copies.
+      They stay in this browser and are never uploaded.</p>
+    <ol class="steps">
+      <li><b>Boot ROM</b>, <code>cyrom150.bin</code> (32 KB), and <b>flash</b> with CyOS 1.5.08,
+        <code>cyos_v1508.bin</code> (512 KB). Both are in MAME's Cybiko ROM set (<code>cybikov1.zip</code>,
+        listed for example on <a href="https://www.planetemu.net/rom/mame-roms/cybikoxt">Planet Emulation</a>).
+        Pick the zip itself and the page takes the two files out of it, or pick them one by one.</li>
+      <li>Optional: a <b>CyOS update</b> (<code>*.boot</code>, such as the Russian CyOS 1.5.08), installed on start.</li>
+    </ol>
+    <p class="row"><label>MAME zip <input id="zip-file" type="file" accept=".zip"></label> <span id="zip-ok"></span></p>
     <p class="row"><label>Boot ROM <input id="rom-file" type="file"></label> <span id="rom-ok"></span></p>
     <p class="row"><label>Flash <input id="flash-file" type="file"></label> <span id="flash-ok"></span></p>
-    <p class="row"><label>CyOS update, optional (<code>*.boot</code>, such as the Russian 1.5.08)
+    <p class="row"><label>CyOS update, optional
       <input id="boot-file" type="file" accept=".boot"></label> <span id="boot-ok"></span></p>
     <p class="row"><button id="start-btn" type="button" disabled>Start</button></p>
   </section>
@@ -35,6 +42,26 @@
     <p class="hint">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
       F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins, F11 = Menu, F12 = On/Off,
       [ ] = ( ), / = !. Drop <code>.app</code> or other files on the page (or use Add files) to put them on the Cybiko; it restarts to take them.</p>
+    <details class="guide">
+      <summary>Where to get apps, games and the MP3 player</summary>
+      <ul>
+        <li><b>Games and apps</b> (<code>.app</code>, with their <code>.dat</code> or other files if they have any): the
+          <a href="https://mirror.jcx.life/cybiko/">cybiko.net download mirror</a>,
+          <a href="https://archive.org/details/cybiko">Kerry Brown's archive</a> and
+          <a href="https://archive.org/details/cybiko-applications-games-and-install-cd">Jake Kussmaul's collection</a>
+          on the Internet Archive. Drop them on the page or use <b>Add files to the Cybiko</b>. They appear at the
+          end of the Main desktop after the restart.</li>
+        <li><b>Installers</b> (<code>.cap</code>, <code>.csu</code>) from the
+          <a href="https://archive.org/details/CybikoXtremeInstallationCD">Xtreme Installation CD</a>, such as CyRecord,
+          CyTalk or E-mail: add them the same way. The page unpacks them, as EZ Loader did.</li>
+        <li><b>The MP3 cartridge</b> needs its software on the Cybiko: <code>MP3.cap</code> from the
+          <i>MP3 player cartridge's own CD</i>, added with <b>Add files to the Cybiko</b>. The MP3Soft pack on the Xtreme
+          CD is an older version that never finds the card. Then put MP3s and MXD clips on the card in
+          <b>Settings &rarr; MP3 cartridge</b>. "MP3 Player" appears on the desktop; in it, Menu opens the song list.</li>
+        <li>Everything on the Cybiko is in <b>Settings &rarr; Files on the Cybiko</b>, and
+          <b>Download backup</b> saves all of it in one file.</li>
+      </ul>
+    </details>
   </section>
 
   <section id="settings" hidden>
@@ -62,9 +89,9 @@
       <button id="card-clear" type="button">Empty the card</button>
       <input id="card-file" type="file" multiple hidden>
       <input id="card-dir" type="file" webkitdirectory hidden></p>
-    <p class="note">MP3s, MXD clips (<code>.app</code> files made by the converters) and the MP3 Player
-      software from the cartridge's CD, as you would put them on the real card. Kept in this browser;
-      the Cybiko sees them after a restart.</p>
+    <p class="note">MP3s and MXD clips (<code>.app</code> files made by the converters), as you would put them on
+      the real card. Kept in this browser; the Cybiko sees them after a restart. The cartridge's software
+      (<code>MP3.cap</code>) goes on the Cybiko, not the card: the page moves it there if you add it here.</p>
     <p class="row"><label>Volume <input id="set-volume" type="range" min="0" max="100"></label></p>
     <p class="row"><label>Zoom <select id="set-zoom">
       <option value="0">Fit</option><option value="1">1x</option><option value="2">2x</option>
@@ -97,6 +124,9 @@
 <div id="drop" hidden>Drop .app files to install them</div>
 <script src="config.js"></script>
 <script src="idb.js"></script>
+<script src="lib/util.js"></script>
+<script src="lib/bzip2.js"></script>
+<script src="lib/cap.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

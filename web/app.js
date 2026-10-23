@@ -267,6 +267,41 @@ function checkSetup() {
     if (pending.flash && !flashOk) $("flash-ok").textContent += " (should be 524288: not a flash dump?)";
     $("start-btn").disabled = !(romOk && flashOk);
 }
+/* MAME's ROM set, as a zip: take the Xtreme's boot ROM and CyOS 1.5.08 out of it */
+async function unzip(data) {
+    const out = {}, u16 = o => data[o] | data[o + 1] << 8, u32 = o => (u16(o) | u16(o + 2) << 16) >>> 0;
+    let end = data.length - 22;
+    while (end >= 0 && u32(end) !== 0x06054b50) end--;
+    if (end < 0) throw new Error("not a zip file");
+    let p = u32(end + 16);
+    for (let i = 0, n = u16(end + 10); i < n; i++) {
+        const method = u16(p + 10), csize = u32(p + 20), nlen = u16(p + 28), xlen = u16(p + 30), clen = u16(p + 32);
+        const name = new TextDecoder().decode(data.subarray(p + 46, p + 46 + nlen)).replace(/^.*\//, "").toLowerCase();
+        const local = u32(p + 42), start = local + 30 + u16(local + 26) + u16(local + 28);
+        const raw = data.subarray(start, start + csize);
+        if (method === 0) out[name] = raw;
+        else if (method === 8)
+            out[name] = new Uint8Array(await new Response(new Blob([raw]).stream()
+                .pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+        p += 46 + nlen + xlen + clen;
+    }
+    return out;
+}
+$("zip-file").onchange = async () => {
+    const data = await readFile($("zip-file"));
+    if (!data) return;
+    try {
+        const z = await unzip(data);
+        const rom = z["cyrom150.bin"], flash = z["cyos_v1508.bin"];
+        if (rom) pending.rom = rom;
+        if (flash) pending.flash = flash;
+        $("zip-ok").textContent = rom && flash ? "found cyrom150.bin and cyos_v1508.bin"
+            : `no ${[rom ? "" : "cyrom150.bin", flash ? "" : "cyos_v1508.bin"].filter(Boolean).join(" or ")} in it (it has ${Object.keys(z).join(", ")})`;
+    } catch (e) {
+        $("zip-ok").textContent = `could not read it: ${e.message}`;
+    }
+    checkSetup();
+};
 $("rom-file").onchange = async () => { pending.rom = await readFile($("rom-file")); checkSetup(); };
 $("flash-file").onchange = async () => { pending.flash = await readFile($("flash-file")); checkSetup(); };
 $("boot-file").onchange = async () => { pending.boot = await readFile($("boot-file")); checkSetup(); };
@@ -295,12 +330,40 @@ window.addEventListener("drop", e => {
 $("add-btn").onclick = () => $("add-file").click();
 $("add-file").onchange = () => { const list = Array.from($("add-file").files); $("add-file").value = ""; addFiles(list); };
 
+/* An EZ Loader pack (.cap, .csu: the CD's installers, such as the MP3
+ * cartridge software) holds the files to put on the Cybiko: unpack it, as
+ * EZ Loader did. Its scripts ran on the PC and are left out. */
+function isPack(data) {
+    return data.length > 0x1b && data[0] === 0x43 && data[1] === 0x41 && data[2] === 0x50;   /* "CAP" */
+}
+function unpack(name, data) {
+    const out = [];
+    try {
+        for (const e of Cybiko.cap.parsePack(data)) {
+            if (e.type === 2) out.push({ name: Cybiko.cap.safeName(e.name), data: Cybiko.cap.decodeFile(e) });
+            else log(`files: ${name}: ${Cybiko.cap.TYPE_NAMES[e.type] || "entry"} ${e.name} is for EZ Loader on the PC; not copied`);
+        }
+        log(`files: ${name} unpacked: ${out.map(f => f.name).join(", ")}`);
+        const sdflash = out.find(f => f.name.toLowerCase() === "sdflash.dl");
+        const inf = sdflash && Cybiko.cap.cyEntries(sdflash.data).find(e => e.name === "root.inf" && e.data);
+        if (inf && /^21\.1\.3\r?$/m.test(Cybiko.util.latin1(inf.data)))
+            log(`files: ${name} has the older MP3 cartridge software (sdflash.dl 21.1.3, as on the Xtreme CD): ` +
+                "it stops after reading the card's size and the card never shows up. MP3.cap from the MP3 cartridge's CD (21.1.4) works.");
+    } catch (e) {
+        log(`files: ${name} could not be unpacked (${e.message}); not copied`);
+    }
+    return out;
+}
+
 async function addFiles(files) {
     if (!worker) return;
     const apps = [];
     for (const f of files) {
-        if (f.name.length > 58) { log(`files: ${f.name}: name too long for CyOS (58 at most); not copied`); continue; }
-        apps.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
+        const data = f.data || new Uint8Array(await f.arrayBuffer());
+        for (const a of isPack(data) ? unpack(f.name, data) : [{ name: f.name, data }]) {
+            if (a.name.length > 58) { log(`files: ${a.name}: name too long for CyOS (58 at most); not copied`); continue; }
+            apps.push(a);
+        }
     }
     if (apps.length) restart(apps);
 }
@@ -350,16 +413,26 @@ $("card-add").onclick = () => $("card-file").click();
 $("card-folder").onclick = () => $("card-dir").click();
 async function addToCard(files) {
     const card = await store.get("card") || [];
+    const packs = [];
+    let added = 0;
     for (const f of files) {
         const path = (f.webkitRelativePath || f.name).replace(/^\/+/, "");
+        const data = new Uint8Array(await f.arrayBuffer());
+        if (isPack(data) || /\.dl$/i.test(f.name) || /^mp3player\.app$/i.test(f.name)) {
+            /* the cartridge's software runs from the Cybiko's disk, not the card */
+            log(`card: ${path} is Cybiko software; putting it on the Cybiko instead`);
+            packs.push({ name: f.name, data });
+            continue;
+        }
         const i = card.findIndex(c => c.path === path);
-        const entry = { path, data: new Uint8Array(await f.arrayBuffer()) };
-        if (i >= 0) card[i] = entry; else card.push(entry);
+        if (i >= 0) card[i] = { path, data }; else card.push({ path, data });
+        added++;
     }
     await store.set("card", card);
-    log(`card: ${files.length} files added`);
+    if (added) log(`card: ${added} files added`);
     showCard();
-    if (worker) restart();
+    if (packs.length && worker) addFiles(packs);
+    else if (worker) restart();
 }
 $("card-file").onchange = () => { const l = Array.from($("card-file").files); $("card-file").value = ""; addToCard(l); };
 $("card-dir").onchange = () => { const l = Array.from($("card-dir").files); $("card-dir").value = ""; addToCard(l); };
