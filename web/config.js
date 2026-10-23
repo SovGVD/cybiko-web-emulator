@@ -2,6 +2,6 @@
  * proxy: the Cloudflare Worker from proxy/ (internet and the radio relay). */
 "use strict";
 const SITE = {
-    proxy: "",
+    proxy: "https://cybiko-relay.sovgvd.workers.dev",
     room: "public",
 };
