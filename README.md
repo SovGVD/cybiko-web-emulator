@@ -124,6 +124,16 @@ every push to `main`. Turn it on once in Settings -> Pages -> Source:
 - The beeper is a plain square wave (no duty cycle).
 - The clock shows 12:00am, 2000 after the first-run setup until it is set in CyOS.
 
+## Credits
+
+The machine model stands on [MAME](https://www.mamedev.org/): Tim
+Schuerewegen's Cybiko driver, HD66421, PCF8593 and imgtool `cybikoxt` code, and
+Olivier Galibert's and hap's H8 core and peripherals, were the reference for
+it. No MAME code is copied. JPEG pictures are decoded with ChaN's TJpgDec.
+The details and licenses are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 ## License
 
-MIT, see [LICENSE](LICENSE). The C in `deps/` keeps its own licenses.
+MIT, see [LICENSE](LICENSE). The C in `deps/` keeps its own licenses, and
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) goes with every copy of
+`web/emu.wasm`.
