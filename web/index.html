@@ -27,6 +27,7 @@
   </section>
 
   <section id="machine" hidden>
+    <p id="notice" class="notice" hidden></p>
     <div id="screen-wrap"><canvas id="screen" width="160" height="100"></canvas></div>
     <div id="keyboard"></div>
     <p class="row add"><button id="add-btn" type="button">Add files to the Cybiko</button>
@@ -52,6 +53,18 @@
     <p class="row"><label>RAM disk <select id="set-disk">
       <option value="1">1 MB</option><option value="2">2 MB</option><option value="4">4 MB</option>
       <option value="6">6 MB</option></select></label></p>
+    <p class="row"><label>MP3 cartridge <select id="set-cart">
+      <option value="auto">In when the card has files</option><option value="on">In</option>
+      <option value="off">Out</option></select></label></p>
+    <p class="row">Card: <span id="card-info"></span>
+      <button id="card-add" type="button">Add files</button>
+      <button id="card-folder" type="button">Add a folder</button>
+      <button id="card-clear" type="button">Empty the card</button>
+      <input id="card-file" type="file" multiple hidden>
+      <input id="card-dir" type="file" webkitdirectory hidden></p>
+    <p class="note">MP3s, MXD clips (<code>.app</code> files made by the converters) and the MP3 Player
+      software from the cartridge's CD, as you would put them on the real card. Kept in this browser;
+      the Cybiko sees them after a restart.</p>
     <p class="row"><label>Volume <input id="set-volume" type="range" min="0" max="100"></label></p>
     <p class="row"><label>Zoom <select id="set-zoom">
       <option value="0">Fit</option><option value="1">1x</option><option value="2">2x</option>
@@ -61,6 +74,9 @@
       <button id="set-save" type="button">Save and restart</button>
       <button id="set-close" type="button">Close</button>
       <button id="set-files" type="button">Files on the Cybiko</button>
+      <button id="backup-btn" type="button">Download backup</button>
+      <button id="restore-btn" type="button">Restore backup</button>
+      <input id="restore-file" type="file" hidden>
       <button id="set-forget" type="button" class="danger">Forget everything</button>
     </p>
     <ul id="file-list"></ul>

@@ -29,7 +29,21 @@ WebAssembly. Both are submodules in `deps/`.
    Backspace = Del, Shift, Ctrl = Fn, F1-F7, F8/Home = Select, F9 = Help,
    F10/Insert = Ins, F11 = Menu, F12 = On/Off, `[` `]` = `(` `)`, `/` = `!`.
 4. Drop `.app` (or any) files on the page, or tap "Add files to the Cybiko", to put them on the Cybiko: it saves
-   and restarts, like the board copying `apps/` at power-on.
+   and restarts (CyOS reads its disk only at power-on), and a note above the
+   screen says what was copied. Apps appear at the end of the Main desktop.
+
+Settings also has:
+
+- **Download backup / Restore backup**: the whole RAM disk of this tab's
+  Cybiko as one file (`ramdisk.bin`), to keep or move to another browser.
+- **MP3 cartridge**: a card kept in the browser. Add MP3s, MXD clips or a
+  folder (as you would copy them to the real card) and the Cybiko sees the
+  cartridge after a restart, so the MP3 Player and clips play with sound.
+- **Files on the Cybiko**: the list; click a file to download it.
+
+The clock runs on your computer's time (CyOS shows the year as 2002-2005:
+the clock chip only keeps the year mod 4). The beeper has its real duty
+cycle, mixed with the cartridge's sound.
 
 The RAM disk (4 MB by default, Settings) and a reprogrammed flash are saved
 every few seconds. The screen uses integer zoom only.
@@ -117,12 +131,6 @@ every push to `main`. Turn it on once in Settings -> Pages -> Source:
 | `web/app.js` | the page: dumps, screen, keys, sound, files, settings |
 | `proxy/core.mjs` | the proxy, shared by `worker.mjs` (Cloudflare) and `local.mjs` (Node) |
 | `deps/dragonfruit`, `deps/cybiko-browser` | the C, as submodules |
-
-## Not done yet
-
-- The MP3 cartridge (the board has it; here it needs a decoder in the page).
-- The beeper is a plain square wave (no duty cycle).
-- The clock shows 12:00am, 2000 after the first-run setup until it is set in CyOS.
 
 ## Credits
 

@@ -37,7 +37,7 @@ $("log-box").addEventListener("toggle", showLog);
 /* ---- settings ---- */
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
-                   disk: 4, volume: 60, zoom: 0 };
+                   disk: 4, volume: 60, zoom: 0, cart: "auto" };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
@@ -56,15 +56,17 @@ function fillSettings() {
     $("set-disk").value = String(settings.disk);
     $("set-volume").value = String(settings.volume);
     $("set-zoom").value = String(settings.zoom);
+    $("set-cart").value = settings.cart;
 }
 
 function readSettings() {
     return { proxy: $("set-proxy").value.trim(), room: $("set-room").value.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) || "public",
              online: $("set-online").checked, gate: $("set-gate").checked, home: $("set-home").value.trim(),
-             disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value };
+             disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
+             cart: $("set-cart").value };
 }
 
-$("settings-btn").onclick = () => { fillSettings(); $("settings").hidden = !$("settings").hidden; };
+$("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
 $("set-close").onclick = () => { $("settings").hidden = true; };
 $("set-volume").oninput = () => { settings.volume = +$("set-volume").value; setVolume(); };
 $("set-zoom").onchange = () => { settings.zoom = +$("set-zoom").value; fitScreen(); };
@@ -111,29 +113,36 @@ function fitScreen() {
 }
 window.addEventListener("resize", fitScreen);
 
-/* ---- sound: the beeper as a square wave ---- */
+/* ---- sound: the worker's samples (beeper and MP3 cartridge, mixed in C),
+ * played as a queue of short buffers ---- */
 
-let audio = null, osc = null, gain = null, tone = { f: 0, d: 0.5 };
+let audio = null, gain = null, playAt = 0;
 function audioOn() {
     if (audio) { if (audio.state === "suspended") audio.resume(); return; }
     try {
         audio = new AudioContext();
         gain = audio.createGain();
         gain.connect(audio.destination);
-        osc = audio.createOscillator();
-        osc.type = "square";
-        osc.connect(gain);
-        osc.start();
-        speaker(tone.f, tone.d);
+        setVolume();
     } catch (e) { log(`sound: not available (${e})`); }
 }
-function setVolume() { speaker(tone.f, tone.d); }
-function speaker(f, d) {
-    tone = { f, d };
-    if (!audio) return;
-    const on = f > 20 && f < 20000;
-    if (on) osc.frequency.setTargetAtTime(f, audio.currentTime, 0.001);
-    gain.gain.setTargetAtTime(on ? 0.12 * settings.volume / 100 : 0, audio.currentTime, 0.002);
+function setVolume() { if (gain) gain.gain.value = settings.volume / 100; }
+let late = 0;
+function play(pcm, rate) {
+    if (!audio || audio.state !== "running" || !pcm.length) return;
+    const now = audio.currentTime;
+    /* keep 60-250 ms queued: start again a little ahead after a gap, and
+     * skip a buffer when the queue runs long (the two clocks drift) */
+    if (playAt < now + 0.02) playAt = now + 0.06;
+    if (playAt > now + 0.25) { if (!(late++ & 255)) log("sound: running ahead of the sound card, a bit skipped"); return; }
+    const buf = audio.createBuffer(1, pcm.length, rate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+    const src = audio.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain);
+    src.start(playAt);
+    playAt += pcm.length / rate;
 }
 
 /* ---- keys ---- */
@@ -296,6 +305,71 @@ async function addFiles(files) {
     if (apps.length) restart(apps);
 }
 
+/* ---- backup: the RAM disk as ramdisk.bin (the board's and the desktop
+ * app's format), and single files ---- */
+
+function download(name, data) {
+    const url = URL.createObjectURL(new Blob([data], { type: "application/octet-stream" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+$("backup-btn").onclick = () => worker && worker.postMessage({ t: "getdisk" });
+$("restore-btn").onclick = () => $("restore-file").click();
+$("restore-file").onchange = async () => {
+    const f = $("restore-file").files[0];
+    $("restore-file").value = "";
+    if (!f) return;
+    const data = new Uint8Array(await f.arrayBuffer());
+    if (data.length < 0x80000 || data.length > 0x600000 || data.length % 0x10000) {
+        alert(`${f.name} is not a RAM disk image (512 KB to 6 MB, in 64 KB steps).`);
+        return;
+    }
+    if (!confirm(`Replace everything on Cybiko ${slot} with ${f.name}?`)) return;
+    const w = worker;
+    worker = null;
+    if (w) w.terminate();                      /* no last save: the disk is replaced */
+    await store.set(slotKey("disk"), data);
+    log(`files: Cybiko ${slot}'s disk restored from ${f.name}`);
+    boot();
+};
+
+/* ---- the MP3 cartridge's card: files kept in this browser, shared by all
+ * tabs; the cartridge reads them as a FAT card (writes last until a restart) */
+
+async function showCard() {
+    const card = await store.get("card") || [];
+    const total = card.reduce((n, f) => n + f.data.length, 0);
+    $("card-info").textContent = card.length ? `${card.length} files, ${(total / 1048576).toFixed(1)} MB` : "empty";
+}
+$("card-add").onclick = () => $("card-file").click();
+$("card-folder").onclick = () => $("card-dir").click();
+async function addToCard(files) {
+    const card = await store.get("card") || [];
+    for (const f of files) {
+        const path = (f.webkitRelativePath || f.name).replace(/^\/+/, "");
+        const i = card.findIndex(c => c.path === path);
+        const entry = { path, data: new Uint8Array(await f.arrayBuffer()) };
+        if (i >= 0) card[i] = entry; else card.push(entry);
+    }
+    await store.set("card", card);
+    log(`card: ${files.length} files added`);
+    showCard();
+    if (worker) restart();
+}
+$("card-file").onchange = () => { const l = Array.from($("card-file").files); $("card-file").value = ""; addToCard(l); };
+$("card-dir").onchange = () => { const l = Array.from($("card-dir").files); $("card-dir").value = ""; addToCard(l); };
+$("card-clear").onclick = async () => {
+    if (!confirm("Take every file off the MP3 card?")) return;
+    await store.del("card");
+    showCard();
+    if (worker) restart();
+};
+
 /* ---- the worker ---- */
 
 /* Every open tab is a Cybiko of its own: the first takes slot 1, a second
@@ -329,19 +403,31 @@ async function boot(apps) {
     }
     $("machine").hidden = false;
     fitScreen();
+    putDone = [];
     worker = new Worker("emu-worker.js");
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
-    worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [],
+    const card = await store.get("card") || [];
+    worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [], card,
                          boot: slot === 1 && boot ? boot : null, slot,
                          diskSize: settings.disk << 20, id24, settings });
 }
 
 /* Saves, then powers the Cybiko off and on again (with new files). */
+let noticeTimer = 0;
+function notice(text, ms = 8000) {
+    $("notice").textContent = text;
+    $("notice").hidden = false;
+    clearTimeout(noticeTimer);
+    if (ms) noticeTimer = setTimeout(() => { $("notice").hidden = true; }, ms);
+}
+
 function restart(apps) {
     const w = worker;
     worker = null;
     $("status").textContent = "restarting";
+    if (apps && apps.length)
+        notice(`Copying ${apps.map(a => a.name).join(", ")} to the Cybiko: it restarts to see them (CyOS reads its disk at power-on).`, 0);
     const go = () => { w.terminate(); boot(apps); };
     const timer = setTimeout(() => { log("restart: the worker did not answer; restarting without the last save"); go(); }, 3000);
     w.onmessage = e => {
@@ -350,20 +436,32 @@ function restart(apps) {
     w.postMessage({ t: "save" });
 }
 
+let putDone = [];
 function onWorker(e) {
     const m = e.data;
     switch (m.t) {
     case "frame": draw(m.lum); break;
     case "log": log(m.line); break;
-    case "speaker": speaker(m.f, m.d); break;
+    case "audio": play(m.pcm, m.rate); break;
+    case "file": download(m.name, m.data); break;
+    case "disk": download(slot > 1 ? `ramdisk-${slot}.bin` : "ramdisk.bin", m.data); break;
     case "started": log("started"); break;
-    case "put": log(`files: ${m.name} ${m.ok ? "is on the Cybiko" : "not copied: " + m.why}`); break;
+    case "put":
+        log(`files: ${m.name} ${m.ok ? "is on the Cybiko" : "not copied: " + m.why}`);
+        putDone.push(m.ok ? m.name : `${m.name} (not copied: ${m.why})`);
+        notice(`On the Cybiko: ${putDone.join(", ")}. Apps appear at the end of the Main desktop once CyOS has started.`, 20000);
+        break;
     case "files": {
         const ul = $("file-list");
         ul.textContent = "";
         for (const f of m.list) {
             const li = document.createElement("li");
-            li.textContent = `${f.name} (${f.size} bytes)`;
+            const a = document.createElement("a");
+            a.href = "#";
+            a.textContent = f.name;
+            a.title = "Download";
+            a.onclick = e => { e.preventDefault(); worker && worker.postMessage({ t: "getfile", name: f.name }); };
+            li.append(a, ` (${f.size} bytes)`);
             ul.appendChild(li);
         }
         const li = document.createElement("li");

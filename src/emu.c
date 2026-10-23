@@ -20,9 +20,11 @@
 #include "cy_gate.h"
 #include "cy_browser_app.h"
 #include "net_web.h"
+#include "cy_mp3.h"
+#include "cy_vfat.h"
+#include <math.h>
 
 EM_JS(void, js_log, (const char *line), { Module.onLog(UTF8ToString(line)); });
-EM_JS(void, js_speaker, (float freq, float duty), { Module.onSpeaker(freq, duty); });
 EM_JS(void, js_rf_send, (const uint8_t *pkt, int len, int ch), {
     Module.onRadio(HEAPU8.slice(pkt, pkt + len), ch);
 });
@@ -124,6 +126,16 @@ EMSCRIPTEN_KEEPALIVE const char *emu_disk_list(void)
     return out;
 }
 
+/* A file from the disk into the scratch buffer: its length, or -1. */
+EMSCRIPTEN_KEEPALIVE int32_t emu_disk_read(const char *name)
+{
+    cy_disk_file_t f;
+    if (!cy_disk_find(disk, disk_size, name, &f)) return -1;
+    uint8_t *buf = emu_scratch(f.size ? f.size : 1);
+    if (!buf) return -1;
+    return cy_disk_read(disk, disk_size, name, buf, f.size);
+}
+
 EMSCRIPTEN_KEEPALIVE uint32_t emu_disk_free(void) { return cy_disk_free(disk, disk_size); }
 
 /* Puts the native Browser app (cybiko-browser cyapp/) on the disk unless the
@@ -176,11 +188,114 @@ static int64_t wall_time(void *user)
     return (int64_t)js_wall_time();
 }
 
+/* ---- sound: the beeper and the MP3 cartridge, mixed at RATE (as the
+ * desktop app, cybiko_sdl.c) and handed to the page with emu_audio ---- */
+
+#define RATE 32000
+#define AUDIO_MAX (RATE / 2)                 /* samples kept for the page, 500 ms */
+static float beep_freq, beep_duty, beep_phase;
+static cy_mp3_t *mp3;
+static uint64_t samples_done;
+static int16_t audio_buf[AUDIO_MAX];
+static uint32_t audio_len, audio_dropped;
+
 static void on_speaker(void *user, float freq, float duty)
 {
     (void)user;
-    js_speaker(freq, duty);
+    beep_freq = freq;
+    beep_duty = duty > 0 && duty < 1 ? duty : 0.5f;
 }
+
+/* Make the samples for the emulated time run so far. */
+static void make_sound(void)
+{
+    uint64_t due = h8s_time(&m.cpu) * RATE / CY_CLOCK_HZ;
+    static int16_t music[1024];
+    static uint8_t in[4096];
+    while (samples_done < due) {
+        size_t n = due - samples_done < 1024 ? (size_t)(due - samples_done) : 1024;
+        size_t real = 0;
+        if (mp3) {
+            size_t space = cy_mp3_space(mp3);
+            size_t got = cybiko_mp3_take(&m, in, space < sizeof in ? space : sizeof in);
+            cy_mp3_feed(mp3, in, got);
+            real = cy_mp3_render(mp3, music, n, RATE);
+        }
+        /* the cartridge's volume register, 1 dB a step from its default */
+        uint8_t v = mp3 ? cybiko_mp3_volume(&m) : 0;
+        float gain = v ? powf(10.0f, ((int)v - 0x6a) / 20.0f) : 0.0f;
+        if (gain > 2.0f) gain = 2.0f;
+        for (size_t i = 0; i < n; i++) {
+            float x = 0;
+            if (beep_freq > 0) {
+                x = beep_phase < beep_duty ? 0.25f : -0.25f;
+                beep_phase += beep_freq / RATE;
+                if (beep_phase >= 1.0f) beep_phase -= floorf(beep_phase);
+            }
+            if (i < real) x += music[i] / 32768.0f * gain;
+            int16_t pcm = (int16_t)(x > 1 ? 32767 : x < -1 ? -32768 : x * 32767);
+            if (audio_len < AUDIO_MAX) audio_buf[audio_len++] = pcm;
+            else audio_dropped++;           /* the page stopped taking sound */
+        }
+        samples_done += n;
+    }
+}
+
+/* The sound made since the last call: returns the number of 16-bit mono
+ * samples at RATE in emu_audio_buf. */
+EMSCRIPTEN_KEEPALIVE int16_t *emu_audio_buf(void) { return audio_buf; }
+EMSCRIPTEN_KEEPALIVE uint32_t emu_audio(void)
+{
+    uint32_t n = audio_len;
+    audio_len = 0;
+    if (audio_dropped) {
+        logf_("sound: %u samples dropped (the page was not taking them)", (unsigned)audio_dropped);
+        audio_dropped = 0;
+    }
+    return n;
+}
+EMSCRIPTEN_KEEPALIVE uint32_t emu_audio_rate(void) { return RATE; }
+
+/* ---- the MP3 cartridge's card: the page's files, put in /card ---- */
+
+static cy_vfat_t *card;
+
+static bool card_read(void *user, uint32_t block, uint8_t *buf)
+{
+    (void)user;
+    return card && cy_vfat_read(card, block, buf);
+}
+
+static bool card_write(void *user, uint32_t block, const uint8_t *buf)
+{
+    (void)user;
+    return card && cy_vfat_write(card, block, buf);
+}
+
+/* mode 0: no cartridge, 1: when /card has files, 2: always (empty card). */
+static void setup_cart(int mode)
+{
+    if (!mode) return;
+    cy_vfat_t *v = cy_vfat_open("/card", 8192);
+    if (v && !cy_vfat_files(v) && mode == 1) {
+        cy_vfat_close(v);
+        return;
+    }
+    if (!v && mode == 1) return;
+    m.cart.present = true;
+    mp3 = malloc(cy_mp3_size());
+    if (mp3) cy_mp3_init(mp3);
+    else logf_("MP3 cartridge: no memory for the decoder, no music");
+    if (v) {
+        card = v;
+        m.cart.card_blocks = cy_vfat_blocks(v);
+        logf_("MP3 cartridge: %u files on a %u MB card (%u left out: too many, too big or too deep)",
+              (unsigned)cy_vfat_files(v), (unsigned)(cy_vfat_blocks(v) >> 11), (unsigned)cy_vfat_skipped(v));
+    } else {
+        logf_("MP3 cartridge, no card");
+    }
+}
+
 
 static void on_rf(void *user, const uint8_t *pkt, size_t len, uint8_t ch)
 {
@@ -214,16 +329,18 @@ static uint32_t on_app_call(void *user, uint32_t fn, uint32_t arg)
 
 /* id24: the low 24 bits of this tab's Cybiko ID (the top byte stays the
  * dump's), 0 keeps the dump's ID. gate_on: run a CyWIG for this Cybiko. */
-EMSCRIPTEN_KEEPALIVE int emu_start(uint32_t id24, int gate_on, const char *home)
+EMSCRIPTEN_KEEPALIVE int emu_start(uint32_t id24, int gate_on, const char *home, int cart)
 {
     if (started || !rom || !flash || !disk) return 0;
     install_browser();
     cy_host_t host = { .serial_tx = on_tx, .wall_time = wall_time, .speaker = on_speaker,
-                       .rf_send = on_rf, .app_call = on_app_call };
+                       .rf_send = on_rf, .app_call = on_app_call, .card_read = card_read,
+                       .card_write = card_write };
     ram = calloc(1, CY_RAM_SIZE);
     if (!ram) return 0;
     cybiko_init(&m, &host, rom, flash, ram);
     cybiko_set_disk(&m, disk, disk_size);
+    setup_cart(cart);
     memcpy(ram, disk, CY_RAMDISK_SIZE);         /* in case the disk cannot be moved */
     if (id24) cybiko_set_unit_id(&m, (cybiko_unit_id(&m) & 0xff000000u) | (id24 & 0xffffffu));
     logf_("Cybiko ID %08x, RAM disk %u KB", (unsigned)cybiko_unit_id(&m), (unsigned)(disk_size >> 10));
@@ -253,6 +370,7 @@ EMSCRIPTEN_KEEPALIVE double emu_run(int32_t states)
         if (did <= 0) did = 1;
         states -= did;
         if (gate) cy_gate_poll(gate, (uint32_t)(m.cpu.cycles / (CY_CLOCK_HZ / 1000)));
+        make_sound();
     }
     return (double)m.cpu.cycles / (CY_CLOCK_HZ / 1000);
 }

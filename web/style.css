@@ -64,6 +64,7 @@ section { background: var(--panel); border-radius: 10px; padding: 12px 16px; mar
 .key.on { background: var(--key-on); color: #000; }
 .key.blank { background: none; border: none; }
 .add { text-align: center; }
+.notice { background: #3b4a2a; border-radius: 6px; padding: 6px 10px; margin: 0 0 10px; font-size: 14px; }
 #log-box summary { cursor: pointer; color: var(--muted); }
 #log {
     max-height: 320px;

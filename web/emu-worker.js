@@ -207,12 +207,22 @@ async function save() {
 /* ---- running ---- */
 
 let last = 0, emuMs = 0, speedAt = 0, speedEmu = 0, speed = 0;
+/* the sound made by the last run, to the page (16-bit mono, emu_audio_rate) */
+function sound() {
+    const n = M._emu_audio();
+    if (!n) return;
+    const p = M._emu_audio_buf() >> 1;
+    const pcm = M.HEAP16.slice(p, p + n);
+    postMessage({ t: "audio", pcm, rate: M._emu_audio_rate() }, [pcm.buffer]);
+}
+
 function tick() {
     const now = performance.now();
     let ms = now - last;
     last = now;
     if (ms > 100) ms = 100;                    /* fell behind: let emulated time slip */
     emuMs = M._emu_run(Math.round(ms * CLOCK / 1000));
+    sound();
     if (now - lastLcd >= 33) {
         lastLcd = now;
         const ver = M._emu_lcd_render();
@@ -231,7 +241,6 @@ async function start(msg) {
     slot = msg.slot || 1;
     M = await CybikoModule({
         onLog: log,
-        onSpeaker: (f, d) => postMessage({ t: "speaker", f, d }),
         onRadio,
         net,
         print: log,
@@ -255,7 +264,19 @@ async function start(msg) {
         postMessage({ t: "put", name: a.name, ok: r === 0, why: r === -1 ? "does not fit" : r === -2 ? "bad name" : "" });
     }
     const home = M.stringToNewUTF8(settings.home || "");
-    if (!M._emu_start(msg.id24, settings.gate === false ? 0 : 1, home)) {
+    /* the MP3 cartridge's card: the page's files in /card (cy_vfat) */
+    let cardFiles = 0;
+    for (const f of msg.card || []) {
+        const path = "/card/" + f.path.replace(/^\/+/, "");
+        try {
+            M.FS.mkdirTree(path.slice(0, path.lastIndexOf("/")));
+            M.FS.writeFile(path, f.data);
+            cardFiles++;
+        } catch (e) { log(`card: ${f.path} not put on the card: ${e}`); }
+    }
+    if (!cardFiles) M.FS.mkdirTree("/card");
+    const cart = settings.cart === "off" ? 0 : settings.cart === "on" ? 2 : 1;
+    if (!M._emu_start(msg.id24, settings.gate === false ? 0 : 1, home, cart)) {
         log("could not start the machine");
         return;
     }
@@ -281,6 +302,22 @@ onmessage = async e => {
     case "start": start(m); break;
     case "key": if (M) M._emu_key(m.k, m.down ? 1 : 0); break;
     case "files": files(); break;
+    case "getfile": {
+        if (!M) break;
+        const name = M.stringToNewUTF8(m.name);
+        const n = M._emu_disk_read(name);
+        M._free(name);
+        if (n < 0) { log(`files: ${m.name} is not on the Cybiko`); break; }
+        const p = M._emu_scratch(0);
+        postMessage({ t: "file", name: m.name, data: M.HEAPU8.slice(p, p + n) });
+        break;
+    }
+    case "getdisk": {
+        if (!M) break;
+        const p = M._emu_disk(M._emu_disk_size());
+        postMessage({ t: "disk", data: M.HEAPU8.slice(p, p + M._emu_disk_size()) });
+        break;
+    }
     case "settings": settings = m.settings; if (M) radioSetup(); break;
     case "save": await save(); postMessage({ t: "saved" }); break;
     default: log(`worker: unknown message ${m.t}`);
