@@ -227,7 +227,8 @@ function tick() {
     if (ms > 100) ms = 100;                    /* fell behind: let emulated time slip */
     emuMs = M._emu_run(Math.round(ms * CLOCK / 1000));
     sound();
-    if (now - lastLcd >= 33) {
+    /* whole frames only: emu_lcd_ready waits until CyOS has finished drawing */
+    if (now - lastLcd >= 16 && M._emu_lcd_ready()) {
         lastLcd = now;
         const ver = M._emu_lcd_render();
         if (ver !== frameVer) {

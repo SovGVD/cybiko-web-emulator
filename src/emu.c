@@ -359,6 +359,36 @@ EMSCRIPTEN_KEEPALIVE int emu_start(uint32_t id24, int gate_on, const char *home,
     return 1;
 }
 
+/* "Vsync" for a screen with none: CyOS writes the LCD controller's memory
+ * directly, so a frame taken in the middle of drawing shows half a picture.
+ * A frame is ready once the screen has changed and then stayed still for
+ * LCD_QUIET_MS (the drawing is done), or after LCD_MAX_MS of steady drawing
+ * (animation and video still move). Counted in emulated milliseconds. */
+#define LCD_QUIET_MS 4
+#define LCD_MAX_MS 100
+static uint32_t lcd_ver, lcd_quiet, lcd_age;
+static bool lcd_pending;
+
+static void lcd_watch(void)
+{
+    if (m.lcd.version != lcd_ver) {
+        lcd_ver = m.lcd.version;
+        lcd_quiet = 0;
+        if (!lcd_pending) { lcd_pending = true; lcd_age = 0; }
+    } else if (lcd_pending) {
+        lcd_quiet++;
+    }
+    if (lcd_pending) lcd_age++;
+}
+
+/* True when the page should take a frame (see lcd_watch). */
+EMSCRIPTEN_KEEPALIVE int emu_lcd_ready(void)
+{
+    if (!started || !lcd_pending || (lcd_quiet < LCD_QUIET_MS && lcd_age < LCD_MAX_MS)) return 0;
+    lcd_pending = false;
+    return 1;
+}
+
 /* Runs about `states` CPU states (18.432 MHz), 1 ms at a time, with the gate
  * between. Returns the emulated milliseconds so far. */
 EMSCRIPTEN_KEEPALIVE double emu_run(int32_t states)
@@ -371,6 +401,7 @@ EMSCRIPTEN_KEEPALIVE double emu_run(int32_t states)
         states -= did;
         if (gate) cy_gate_poll(gate, (uint32_t)(m.cpu.cycles / (CY_CLOCK_HZ / 1000)));
         make_sound();
+        lcd_watch();
     }
     return (double)m.cpu.cycles / (CY_CLOCK_HZ / 1000);
 }
