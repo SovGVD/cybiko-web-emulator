@@ -185,10 +185,14 @@ function status() {
 /* ---- saving ---- */
 
 let diskSaving = false;
+/* A new disk, or files put on it before start, are saved even if CyOS
+ * writes nothing (it does not while its first-run setup waits). */
+let diskNew = false;
 async function save() {
     if (!M) return;
-    if (M._emu_disk_dirty() && !diskSaving) {
+    if ((M._emu_disk_dirty() || diskNew) && !diskSaving) {
         diskSaving = true;
+        diskNew = false;
         const d = M.HEAPU8.slice(M._emu_disk(M._emu_disk_size()), M._emu_disk(M._emu_disk_size()) + M._emu_disk_size());
         try { await store.set(slotKey("disk"), d); } catch (e) { log(`save: RAM disk not saved: ${e}`); }
         diskSaving = false;
@@ -256,6 +260,7 @@ async function start(msg) {
         updating = M._emu_stage_boot(msg.boot.length) === 0;
         if (!updating) await store.del("boot");
     }
+    diskNew = !msg.disk || (msg.apps || []).length > 0;
     for (const a of msg.apps || []) {
         const name = M.stringToNewUTF8(a.name);
         M.HEAPU8.set(a.data, M._emu_scratch(a.data.length));
@@ -275,7 +280,10 @@ async function start(msg) {
         } catch (e) { log(`card: ${f.path} not put on the card: ${e}`); }
     }
     if (!cardFiles) M.FS.mkdirTree("/card");
-    const cart = settings.cart === "off" ? 0 : settings.cart === "on" ? 2 : 1;
+    /* auto: plugged in when the card has files or the cartridge's software
+     * is on the Cybiko (it is sold with the cartridge) */
+    const hasSoftware = M.UTF8ToString(M._emu_disk_list()).toLowerCase().split("\n").some(l => l.startsWith("mp3player.app\t"));
+    const cart = settings.cart === "off" ? 0 : settings.cart === "on" || hasSoftware ? 2 : 1;
     if (!M._emu_start(msg.id24, settings.gate === false ? 0 : 1, home, cart)) {
         log("could not start the machine");
         return;

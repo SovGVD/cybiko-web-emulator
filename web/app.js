@@ -502,6 +502,52 @@ async function showCard() {
     const card = await store.get("card") || [];
     const total = card.reduce((n, f) => n + f.data.length, 0);
     $("card-info").textContent = card.length ? `${card.length} files, ${(total / 1048576).toFixed(1)} MB` : "empty";
+    const ul = $("card-list");
+    ul.textContent = "";
+    for (const f of card) {
+        const li = document.createElement("li");
+        li.textContent = `${f.path} (${f.data.length} bytes)`;
+        ul.appendChild(li);
+    }
+}
+
+/* Cybiko software put on the card by an older version of this page (or by
+ * hand) does nothing there: it has to be on the Cybiko's disk. */
+const isSoftware = (name, data) => isPack(data) || /\.dl$/i.test(name) || /^mp3player\.app$/i.test(name);
+async function softwareOffCard() {
+    const card = await store.get("card") || [];
+    const soft = card.filter(f => isSoftware(f.path.split("/").pop(), f.data));
+    if (!soft.length) return [];
+    await store.set("card", card.filter(f => !soft.includes(f)));
+    log(`card: ${soft.map(f => f.path).join(", ")} is Cybiko software, not for the card; moved onto the Cybiko`);
+    const apps = [];
+    for (const f of soft) {
+        const name = f.path.split("/").pop();
+        apps.push(...(isPack(f.data) ? unpack(name, f.data) : [{ name, data: f.data }]));
+    }
+    return apps;
+}
+
+/* The cartridge without its software: CyOS does nothing with it. Say so
+ * where it is seen, with the way to fix it. */
+async function checkCartSoftware() {
+    const card = await store.get("card") || [];
+    const cartIn = settings.cart === "on" || (settings.cart !== "off" && card.length);
+    if (!cartIn || onCybiko.has("mp3player.app")) return;
+    $("notice").textContent = "";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "Install the MP3 player";
+    b.onclick = () => {
+        $("notice").hidden = true;
+        $("software").open = true;
+        showCatalog();
+        const box = Array.from($("catalog").querySelectorAll("label")).find(l => /MP3 player/.test(l.textContent));
+        if (box) { box.querySelector("input").checked = true; box.querySelector("input").onchange(); }
+        $("software").scrollIntoView({ behavior: "smooth" });
+    };
+    $("notice").append("The MP3 cartridge is in, but its software is not on the Cybiko, so CyOS ignores the card. ", b);
+    $("notice").hidden = false;
 }
 $("card-add").onclick = () => $("card-file").click();
 $("card-folder").onclick = () => $("card-dir").click();
@@ -512,7 +558,7 @@ async function addToCard(files) {
     for (const f of files) {
         const path = (f.webkitRelativePath || f.name).replace(/^\/+/, "");
         const data = new Uint8Array(await f.arrayBuffer());
-        if (isPack(data) || /\.dl$/i.test(f.name) || /^mp3player\.app$/i.test(f.name)) {
+        if (isSoftware(f.name, data)) {
             /* the cartridge's software runs from the Cybiko's disk, not the card */
             log(`card: ${path} is Cybiko software; putting it on the Cybiko instead`);
             packs.push({ name: f.name, data });
@@ -571,6 +617,7 @@ async function boot(apps) {
     $("machine").hidden = false;
     fitScreen();
     putDone = [];
+    apps = [...(apps || []), ...await softwareOffCard()];
     worker = new Worker("emu-worker.js");
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
@@ -621,6 +668,7 @@ function onWorker(e) {
     case "files": {
         onCybiko = new Set(m.list.map(f => f.name.toLowerCase()));
         if ($("software").open) showCatalog();
+        checkCartSoftware();
         const ul = $("file-list");
         ul.textContent = "";
         for (const f of m.list) {

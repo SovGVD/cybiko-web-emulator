@@ -75,7 +75,7 @@ section { background: var(--panel); border-radius: 10px; padding: 12px 16px; mar
     white-space: pre-wrap;
     word-break: break-all;
 }
-#file-list { font-size: 13px; color: var(--muted); }
+#file-list, #card-list { font-size: 13px; color: var(--muted); }
 #drop {
     position: fixed;
     inset: 0;

@@ -77,7 +77,7 @@
       <option value="1">1 MB</option><option value="2">2 MB</option><option value="4">4 MB</option>
       <option value="6">6 MB</option></select></label></p>
     <p class="row"><label>MP3 cartridge <select id="set-cart">
-      <option value="auto">In when the card has files</option><option value="on">In</option>
+      <option value="auto">In with the MP3 software or card files</option><option value="on">In</option>
       <option value="off">Out</option></select></label></p>
     <p class="row">Card: <span id="card-info"></span>
       <button id="card-add" type="button">Add files</button>
@@ -85,6 +85,7 @@
       <button id="card-clear" type="button">Empty the card</button>
       <input id="card-file" type="file" multiple hidden>
       <input id="card-dir" type="file" webkitdirectory hidden></p>
+    <ul id="card-list" class="files"></ul>
     <p class="note">MP3s and MXD clips (<code>.app</code> files made by the converters), as you would put them on
       the real card. Kept in this browser; the Cybiko sees them after a restart. The cartridge's software
       (<code>MP3.cap</code>) goes on the Cybiko, not the card: the page moves it there if you add it here.</p>
