@@ -423,6 +423,9 @@ EMSCRIPTEN_KEEPALIVE int emu_rf_in(uint32_t len, int ch)
 EMSCRIPTEN_KEEPALIVE uint8_t *emu_lcd(void) { return lum; }
 EMSCRIPTEN_KEEPALIVE uint32_t emu_lcd_render(void) { return started ? cybiko_lcd_render(&m, lum) : 0; }
 
+/* The status LED: 0 off, 1 red (sending), 2 green (hearing). */
+EMSCRIPTEN_KEEPALIVE int emu_led(void) { return started ? cybiko_led(&m) : 0; }
+
 EMSCRIPTEN_KEEPALIVE int emu_is_off(void) { return started && cybiko_is_off(&m); }
 EMSCRIPTEN_KEEPALIVE uint32_t emu_unit_id(void) { return started ? cybiko_unit_id(&m) : 0; }
 

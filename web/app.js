@@ -693,6 +693,7 @@ function onWorker(e) {
     const m = e.data;
     switch (m.t) {
     case "frame": draw(m.lum); break;
+    case "led": $("led").className = ["", "red", "green"][m.led] || ""; break;
     case "log": log(m.line); break;
     case "audio": play(m.pcm, m.rate); break;
     case "file": download(m.name, m.data); break;

@@ -227,6 +227,8 @@ function tick() {
     if (ms > 100) ms = 100;                    /* fell behind: let emulated time slip */
     emuMs = M._emu_run(Math.round(ms * CLOCK / 1000));
     sound();
+    const led = M._emu_led();
+    if (led !== ledShown) { ledShown = led; postMessage({ t: "led", led }); }
     /* whole frames only: emu_lcd_ready waits until CyOS has finished drawing */
     if (settings.vsync === false ? now - lastLcd >= 33 : now - lastLcd >= 16 && M._emu_lcd_ready()) {
         lastLcd = now;
@@ -239,7 +241,7 @@ function tick() {
         }
     }
 }
-let frameVer = -1;
+let frameVer = -1, ledShown = -1;
 
 async function start(msg) {
     settings = msg.settings || {};

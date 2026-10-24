@@ -91,6 +91,11 @@ other: everyone in a room hears everyone else, nobody else hears them. The
 default room is `public`. Real Cybikos are out of reach (their air protocol
 is unknown). The emulator is standalone: it does not talk to Dragonfruit boards.
 
+The dot above the screen is the Cybiko's **status LED**. As on a real Xtreme
+it blinks red while the radio sends and green while it hears another Cybiko
+(or the gate), so with others in the room it blinks green every few seconds
+as they ping.
+
 ## Internet: the gate and the proxy
 
 Every tab runs its own CyWIG gate that only its own Cybiko hears, so the
