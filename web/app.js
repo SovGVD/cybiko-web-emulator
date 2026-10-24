@@ -499,7 +499,8 @@ $("restore-file").onchange = async () => {
 };
 
 /* ---- the MP3 cartridge's card: files kept in this browser, shared by all
- * tabs; the cartridge reads them as a FAT card (writes last until a restart) */
+ * tabs; the cartridge reads them as a FAT card, and what CyOS changes on it
+ * (deletes, new files) is kept here too (the worker's save) */
 
 async function showCard() {
     const card = await store.get("card") || [];
@@ -520,9 +521,7 @@ async function showCard() {
     }
 }
 
-/* CyOS cannot delete files on the card (its driver stops with "The file is
- * not found" before writing anything, and what it writes would only last
- * until a restart anyway): the card's files are deleted here. */
+/* The card's files can also be deleted here, without starting CyOS. */
 async function deleteFromCard(path) {
     const card = await store.get("card") || [];
     await store.set("card", card.filter(f => f.path !== path));
@@ -734,6 +733,7 @@ function onWorker(e) {
         break;
     }
     case "saved": break;
+    case "card": showCard(); break;
     default: log(`page: unknown message from the worker: ${m.t}`);
     }
 }

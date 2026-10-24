@@ -188,6 +188,7 @@ let diskSaving = false;
 /* A new disk, or files put on it before start, are saved even if CyOS
  * writes nothing (it does not while its first-run setup waits). */
 let diskNew = false;
+let cardSaving = false;
 async function save() {
     if (!M) return;
     if ((M._emu_disk_dirty() || diskNew) && !diskSaving) {
@@ -196,6 +197,25 @@ async function save() {
         const d = M.HEAPU8.slice(M._emu_disk(M._emu_disk_size()), M._emu_disk(M._emu_disk_size()) + M._emu_disk_size());
         try { await store.set(slotKey("disk"), d); } catch (e) { log(`save: RAM disk not saved: ${e}`); }
         diskSaving = false;
+    }
+    if (M._emu_card_sync() && !cardSaving) {
+        /* the card as CyOS left it, for the next start (shared by all tabs) */
+        cardSaving = true;
+        const files = [];
+        const walk = dir => {
+            for (const name of M.FS.readdir(dir)) {
+                if (name.startsWith(".")) continue;          /* ., .. and changed files' old copies */
+                const p = dir + "/" + name;
+                if (M.FS.isDir(M.FS.stat(p).mode)) walk(p);
+                else files.push({ path: p.slice("/card/".length), data: M.FS.readFile(p) });
+            }
+        };
+        try {
+            walk("/card");
+            await store.set("card", files);
+            postMessage({ t: "card" });
+        } catch (e) { log(`card: CyOS's changes not saved: ${e}`); }
+        cardSaving = false;
     }
     const p = M._emu_flash_to_save(updating ? 1 : 0);
     if (p) {

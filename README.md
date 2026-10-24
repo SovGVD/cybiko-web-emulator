@@ -53,6 +53,8 @@ Settings also has:
 - **MP3 cartridge**: a card kept in the browser. When the cartridge is in (Settings, or files on the card) and the Cybiko lacks its software, the page installs `MP3.cap` from cybiko-roms by itself (a checkbox in Settings turns that off). Add MP3s, MXD clips or a
   folder (as you would copy them to the real card) and the Cybiko sees the
   cartridge after a restart, so the MP3 Player and clips play with sound.
+  What CyOS does on the card (File Manager's Delete, files it writes or
+  renames) is kept in the browser too.
   The cartridge's software must be on the Cybiko: `MP3.cap` from the MP3
   cartridge's own CD (`sdflash.dl` 21.1.4). The `MP3.cap` on the Xtreme
   Installation CD (`sdflash.dl` 21.1.3) stops after reading the card's size and

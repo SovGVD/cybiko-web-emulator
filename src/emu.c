@@ -272,6 +272,20 @@ static bool card_write(void *user, uint32_t block, const uint8_t *buf)
     return card && cy_vfat_write(card, block, buf);
 }
 
+/* Carry what CyOS did on the card over to /card; 1 if anything changed
+ * there, so the page can keep the new files. */
+EMSCRIPTEN_KEEPALIVE int emu_card_sync(void)
+{
+    cy_vfat_sync_t r;
+    if (!card || !cy_vfat_sync(card, &r)) return 0;
+    if (!(r.written | r.removed | r.renamed | r.made | r.failed)) return 0;
+    logf_("card: CyOS's changes: %u files written, %u deleted, %u renamed, %u folders made%s",
+          (unsigned)r.written, (unsigned)r.removed, (unsigned)r.renamed, (unsigned)r.made,
+          r.failed ? " (some could not be made)" : "");
+    if (r.failed) logf_("card: %u changes could not be made", (unsigned)r.failed);
+    return 1;
+}
+
 /* mode 0: no cartridge, 1: when /card has files, 2: always (empty card). */
 static void setup_cart(int mode)
 {
