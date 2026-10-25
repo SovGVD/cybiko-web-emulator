@@ -39,8 +39,9 @@ section { background: var(--panel); border-radius: 10px; padding: 12px 16px; mar
 .note, .hint { color: var(--muted); font-size: 13px; margin-top: -4px; }
 #screen-wrap { display: flex; justify-content: center; }
 #screen-box { position: relative; padding-top: 16px; line-height: 0; }
-#cy-id { position: absolute; top: -2px; left: 20px; font-size: 12px; line-height: 14px; color: var(--muted); }
-#status { text-align: center; margin-top: -4px; }
+/* status line on the LED row, right of the LED */
+#status { position: absolute; top: -2px; left: 20px; right: 0; font-size: 12px; line-height: 14px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the status LED, above the screen's top left corner */
 #led {
     position: absolute; top: 0; left: 4px; width: 10px; height: 10px; border-radius: 50%;
@@ -102,7 +103,6 @@ footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
     main { padding: 4px 8px 16px; }
     .key { height: 44px; font-size: 12px; }
     .hint { display: none; }
-    .status { order: 3; flex-basis: 100%; }
 }
 .steps { padding-left: 20px; }
 .steps li { margin: 6px 0; }

@@ -729,8 +729,7 @@ function onWorker(e) {
     }
     case "status": {
         const r = m.radio;
-        $("cy-id").textContent = `ID ${m.id}`;
-        $("status").textContent = `Cybiko ${slot} · room ${settings.room} · relay ${m.relay} · radio ${r.sent} out, ${r.heard} in · ${m.speed}%`;
+        $("status").textContent = $("status").title = `ID ${m.id} · Cybiko ${slot} · room ${settings.room} · relay ${m.relay} · radio ${r.sent} out, ${r.heard} in · ${m.speed}%`;
         break;
     }
     case "saved": break;

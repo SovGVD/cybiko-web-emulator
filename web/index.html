@@ -31,12 +31,11 @@
 
   <section id="machine" hidden>
     <p id="notice" class="notice" hidden></p>
-    <div id="screen-wrap"><div id="screen-box"><span id="led" title="Status LED: red while the radio sends, green while it hears another Cybiko"></span><span id="cy-id" title="This Cybiko's ID, as other Cybikos see it"></span><canvas id="screen" width="160" height="100"></canvas></div></div>
+    <div id="screen-wrap"><div id="screen-box"><span id="led" title="Status LED: red while the radio sends, green while it hears another Cybiko"></span><span id="status" class="status" title="This Cybiko's ID (as other Cybikos see it), tab slot, radio room, relay, radio packets and speed">not started</span><canvas id="screen" width="160" height="100"></canvas></div></div>
     <div id="keyboard"></div>
     <p class="row add"><button id="settings-btn" type="button">Settings</button>
       <button id="add-btn" type="button">Add files to the Cybiko</button>
       <input id="add-file" type="file" multiple hidden></p>
-    <p id="status" class="status">not started</p>
     <p class="hint">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
       F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins, F11 = Menu, F12 = On/Off,
       [ ] = ( ), / = !. Drop <code>.app</code> or other files on the page (or use Add files) to put them on the Cybiko; it restarts to take them.</p>
