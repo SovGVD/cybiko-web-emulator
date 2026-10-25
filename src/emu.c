@@ -440,6 +440,20 @@ EMSCRIPTEN_KEEPALIVE uint32_t emu_lcd_render(void) { return started ? cybiko_lcd
 /* The status LED: 0 off, 1 red (sending), 2 green (hearing). */
 EMSCRIPTEN_KEEPALIVE int emu_led(void) { return started ? cybiko_led(&m) : 0; }
 
+/* Which letters the keyboard types: 0 Latin (or not known), 1 Cyrillic.
+ * Only the Russian CyOS 1.5.08 has two: Fn+Space flips the keyboard
+ * object's key table (at 4b97a0+0x108, set at 4a1538/4a1522) between 482716
+ * (Latin) and 482f16 (Cyrillic, the one it starts with). The code that sets
+ * it is checked first, so any other CyOS reads as Latin. */
+EMSCRIPTEN_KEEPALIVE int emu_kbd_layout(void)
+{
+    static const uint8_t code[] = { 0x7a, 0x06, 0x00, 0x48, 0x27, 0x16 };   /* mov.l #482716,er6 */
+    if (!started || memcmp(m.ram + 0xa14fc, code, sizeof code)) return 0;
+    const uint8_t *p = m.ram + 0xb98a8;
+    uint32_t table = (uint32_t)p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
+    return table == 0x482f16;
+}
+
 EMSCRIPTEN_KEEPALIVE int emu_is_off(void) { return started && cybiko_is_off(&m); }
 EMSCRIPTEN_KEEPALIVE uint32_t emu_unit_id(void) { return started ? cybiko_unit_id(&m) : 0; }
 

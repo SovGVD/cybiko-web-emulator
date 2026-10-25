@@ -215,12 +215,22 @@ const latched = { SHIFT: false, FN: false };
 const FN_CHARS = "@ } © $ 3 % * + 8 - _ = > < 9 0 1 4 & 5 7 { 2 # 6 \"".split(" ");
 const PUNCT_CHARS = { DOT: ["/", "\\"], COMMA: ["'", "~"], SEMI: [":", "|"], EXCL: ["?", "^"],
     LPAREN: ["[", "`"], RPAREN: ["]", "☺"] };
+/* The Russian CyOS types Cyrillic until Fn+Space (read from its key
+ * tables at 482f16): letters by Latin letter, punctuation as [plain, Fn];
+ * Shift gives capitals everywhere, and Fn on letters is as in Latin but
+ * with ё on D and Ё on R. */
+const CYR_CHARS = "ф и с в у а п р ш о л д ь т щ з й к ы е г м ц ч н я".split(" ");
+const CYR_PUNCT = { DOT: ["ю", "/"], COMMA: ["б", "!"], SEMI: ["ж", ":"], EXCL: ["э", "?"],
+    LPAREN: ["ъ", "."], RPAREN: ["х", ","] };
+let cyrillic = false;
 function keyLabel(name, label) {
     const fn = latched.FN || held.FN, shift = latched.SHIFT || held.SHIFT;
+    if (cyrillic && CYR_PUNCT[name]) return fn ? CYR_PUNCT[name][1] : shift ? CYR_PUNCT[name][0].toUpperCase() : CYR_PUNCT[name][0];
     if (PUNCT_CHARS[name]) return fn ? PUNCT_CHARS[name][0] : shift ? PUNCT_CHARS[name][1] : label;
     if (!/^[A-Z]$/.test(name)) return label || name;
-    if (fn) return FN_CHARS[name.charCodeAt(0) - 65];
-    return shift ? name : name.toLowerCase();
+    if (fn) return cyrillic && name === "D" ? "ё" : cyrillic && name === "R" ? "Ё" : FN_CHARS[name.charCodeAt(0) - 65];
+    const c = cyrillic ? CYR_CHARS[name.charCodeAt(0) - 65] : name.toLowerCase();
+    return shift ? c.toUpperCase() : c;
 }
 function relabel() {
     for (const b of document.querySelectorAll("#keyboard .key[data-key]"))
@@ -723,6 +733,7 @@ function onWorker(e) {
     switch (m.t) {
     case "frame": draw(m.lum); break;
     case "led": $("led").className = ["", "red", "green"][m.led] || ""; break;
+    case "kbd": cyrillic = m.cyrillic; relabel(); break;
     case "log": log(m.line); break;
     case "audio": play(m.pcm, m.rate); break;
     case "file": download(m.name, m.data); break;

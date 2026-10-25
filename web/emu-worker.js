@@ -249,6 +249,8 @@ function tick() {
     sound();
     const led = M._emu_led();
     if (led !== ledShown) { ledShown = led; postMessage({ t: "led", led }); }
+    const kbd = M._emu_kbd_layout();          /* 1 while the Russian CyOS types Cyrillic */
+    if (kbd !== kbdShown) { kbdShown = kbd; postMessage({ t: "kbd", cyrillic: kbd === 1 }); }
     /* whole frames only: emu_lcd_ready waits until CyOS has finished drawing */
     if (settings.vsync === false ? now - lastLcd >= 33 : now - lastLcd >= 16 && M._emu_lcd_ready()) {
         lastLcd = now;
@@ -261,7 +263,7 @@ function tick() {
         }
     }
 }
-let frameVer = -1, ledShown = -1;
+let frameVer = -1, ledShown = -1, kbdShown = -1;
 
 async function start(msg) {
     settings = msg.settings || {};
