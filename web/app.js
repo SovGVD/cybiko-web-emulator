@@ -176,16 +176,28 @@ window.addEventListener("keydown", e => {
     e.preventDefault();
     audioOn();
     if (!e.repeat) key(k, true);
+    pcMod(e.code, true);
 });
 window.addEventListener("keyup", e => {
     const k = pcKey(e);
     if (k === undefined) return;
     e.preventDefault();
     key(k, false);
+    pcMod(e.code, false);
 });
+/* PC Shift and Ctrl (= Fn) held down switch the on-screen labels too */
+const held = { SHIFT: false, FN: false };
+function pcMod(code, down) {
+    const m = /^Shift/.test(code) ? "SHIFT" : /^Control/.test(code) ? "FN" : null;
+    if (!m) return;
+    held[m] = down;
+    relabel();
+}
+window.addEventListener("blur", () => { held.SHIFT = held.FN = false; relabel(); });
 
 /* The on-screen keyboard, laid out like the board's (cybiko_ui.c). Shift
- * and Fn latch: tap them, then the key. */
+ * and Fn latch: tap them, then the key. While one is on (or the PC's
+ * Shift or Ctrl is held), the keys show what they type, as on the board. */
 const LAYOUT = [
     [["F1"], ["F2"], ["F3"], ["F4"], ["F5"], ["F6"], ["F7"], ["INS", "Ins"]],
     [["ESC", "Esc"], ["UP", "▲"], ["MENU", "Menu"], ["HELP", "Help"], ["ONOFF", "On/Off"]],
@@ -197,6 +209,25 @@ const LAYOUT = [
     [["SHIFT", "Shift"], ["LPAREN", "("], ["SPACE", "Space", 3], ["RPAREN", ")"], ["FN", "Fn"], ["ENTER", "Enter", 2]],
 ];
 const latched = { SHIFT: false, FN: false };
+
+/* What CyOS types for Fn + a letter key, by letter, and what Fn and Shift
+ * type on the punctuation keys (the board's tables, cybiko_ui.c). */
+const FN_CHARS = "@ } © $ 3 % * + 8 - _ = > < 9 0 1 4 & 5 7 { 2 # 6 \"".split(" ");
+const PUNCT_CHARS = { DOT: ["/", "\\"], COMMA: ["'", "~"], SEMI: [":", "|"], EXCL: ["?", "^"],
+    LPAREN: ["[", "`"], RPAREN: ["]", "☺"] };
+function keyLabel(name, label) {
+    const fn = latched.FN || held.FN, shift = latched.SHIFT || held.SHIFT;
+    if (PUNCT_CHARS[name]) return fn ? PUNCT_CHARS[name][0] : shift ? PUNCT_CHARS[name][1] : label;
+    if (!/^[A-Z]$/.test(name)) return label || name;
+    if (fn) return FN_CHARS[name.charCodeAt(0) - 65];
+    return shift ? name : name.toLowerCase();
+}
+function relabel() {
+    for (const b of document.querySelectorAll("#keyboard .key[data-key]"))
+        b.textContent = keyLabel(b.dataset.key, b.dataset.label);
+    for (const m of ["SHIFT", "FN"])
+        document.querySelector(`[data-key=${m}]`)?.classList.toggle("on", latched[m] || held[m]);
+}
 function buildKeyboard() {
     const kb = $("keyboard");
     for (const row of LAYOUT) {
@@ -208,8 +239,9 @@ function buildKeyboard() {
             b.style.flexGrow = span || 1;
             if (name) {
                 b.type = "button";
-                b.textContent = label || name;
                 b.dataset.key = name;
+                if (label) b.dataset.label = label;
+                b.textContent = keyLabel(name, label);
                 bindKey(b, name);
             }
             r.appendChild(b);
@@ -225,7 +257,7 @@ function bindKey(b, name) {
         audioOn();
         if (name === "SHIFT" || name === "FN") {
             latched[name] = !latched[name];
-            b.classList.toggle("on", latched[name]);
+            relabel();
             return;
         }
         b.setPointerCapture(e.pointerId);
@@ -244,10 +276,8 @@ function bindKey(b, name) {
         const m = mods;
         mods = [];
         setTimeout(() => m.forEach(x => key(KEY[x], false)), 60);
-        for (const x of m) {
-            latched[x] = false;
-            document.querySelector(`[data-key=${x}]`).classList.remove("on");
-        }
+        for (const x of m) latched[x] = false;
+        relabel();
     };
     b.addEventListener("pointerup", up);
     b.addEventListener("pointercancel", up);

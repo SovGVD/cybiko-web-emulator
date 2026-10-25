@@ -28,7 +28,8 @@ WebAssembly. Both are submodules in `deps/`.
    takes your own dumps, MAME's Cybiko set (`cybikov1.zip`) or a `*.boot`
    update; nothing is uploaded.
 3. CyOS boots. Keys: the on-screen keyboard (Shift and Fn latch: tap them,
-   then the key) or the PC keyboard: letters, Enter, Esc, Space, arrows, Tab,
+   then the key; while one is on, or the PC's Shift or Ctrl is held, the keys
+   show what they type: capitals, or the digits and symbols Fn gives) or the PC keyboard: letters, Enter, Esc, Space, arrows, Tab,
    Backspace = Del, Shift, Ctrl = Fn, F1-F7, F8/Home = Select, F9 = Help,
    F10/Insert = Ins, F11 = Menu, F12 = On/Off, `[` `]` = `(` `)`, `/` = `!`.
 4. **Get apps, games and the MP3 player** (under the keyboard) lists the
