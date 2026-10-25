@@ -39,6 +39,8 @@ section { background: var(--panel); border-radius: 10px; padding: 12px 16px; mar
 .note, .hint { color: var(--muted); font-size: 13px; margin-top: -4px; }
 #screen-wrap { display: flex; justify-content: center; }
 #screen-box { position: relative; padding-top: 16px; line-height: 0; }
+#cy-id { position: absolute; top: -2px; left: 20px; font-size: 12px; line-height: 14px; color: var(--muted); }
+#status { text-align: center; margin-top: -4px; }
 /* the status LED, above the screen's top left corner */
 #led {
     position: absolute; top: 0; left: 4px; width: 10px; height: 10px; border-radius: 50%;
