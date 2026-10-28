@@ -27,5 +27,6 @@ const store = (() => {
         get: key => run("readonly", s => s.get(key)),
         set: (key, value) => run("readwrite", s => s.put(value, key)),
         del: key => run("readwrite", s => s.delete(key)),
+        keys: () => run("readonly", s => s.getAllKeys()),
     };
 })();

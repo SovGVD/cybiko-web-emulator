@@ -1,10 +1,11 @@
-# Cybiko Xtreme in the browser
+# Cybiko Xtreme and Classic in the browser
 
-A Cybiko Xtreme emulator that runs in a web page, with what made the Cybiko
+A Cybiko Xtreme and Cybiko Classic emulator that runs in a web page, with what made the Cybiko
 fun: **the radio** (Chat, games and messages between every Cybiko in the
 same room, in other tabs or other people's browsers) and **the internet**
 through an emulated Cybiko Wireless Internet Gate (CyWIG), for the native
-Browser app and the Xtreme WAP browser.
+Browser app and the Xtreme WAP browser. Keep several **devices** (Xtremes,
+Classics, or both) and switch between them.
 
 ![The page](docs/images/page.png)
 
@@ -75,10 +76,32 @@ cycle, mixed with the cartridge's sound.
 The RAM disk (4 MB by default, Settings) and a reprogrammed flash are saved
 every few seconds. The screen uses integer zoom only.
 
+**Devices.** The Device list at the top of the page holds every Cybiko this
+browser keeps: **New device** makes one, a Cybiko Xtreme or a Cybiko Classic,
+with its own firmware, files, settings and Cybiko ID (it starts with the
+current device's settings). Picking another device saves this one and opens
+that one; the address gets `?device=N`, so a tab or a bookmark stays on its
+device, and tabs on different devices run side by side (and hear each other
+on the radio when they are in the same room). Rename and Delete work on the
+one shown. Forget everything (Settings) drops every device.
+
+**The Cybiko Classic** (the first Cybiko, CyOS 1.2.46) runs the dumps of
+MAME's `cybikov1` set: Start fetches `classic/cyrom112.bin` and
+`classic/flash_v1246.bin` from cybiko-roms, and "Use my own files instead"
+takes them, `cybikov1.zip`, or a [ReBiko](https://github.com/RetroCodeRamen/rebiko)
+release zip (`roms/boot.bin`, `roms/flash.bin`). Its 512 KB DataFlash dump
+becomes a 1 MB one (the other half free space, as on Dragonfruit), and the
+whole flash, CyOS's files with it, is saved in the browser as CyOS writes it;
+Download backup gives it as `flash_saved.bin`, the board's file. The
+keyboard is the Classic's own (digit keys, PC punctuation, no Menu), and the
+PC keys map one to one. The Classic has no RAM disk, MP3 cartridge or gate,
+so adding files, the software list and those settings are hidden for it.
+
 **Every tab is a Cybiko of its own.** The first tab is Cybiko 1, a second
 tab Cybiko 2, and so on, each with its own RAM disk and Cybiko ID (CyOS
 ignores packets from its own ID, so two tabs sharing one could not chat).
-The ROM and flash dumps are shared.
+The ROM and flash dumps are shared. This is per device: the first tab on a
+device is its Cybiko 1.
 
 ## Radio
 
@@ -170,7 +193,9 @@ every push to `main`. Turn it on once in Settings -> Pages -> Source:
 The machine model stands on [MAME](https://www.mamedev.org/): Tim
 Schuerewegen's Cybiko driver, HD66421, PCF8593 and imgtool `cybikoxt` code, and
 Olivier Galibert's and hap's H8 core and peripherals, were the reference for
-it. No MAME code is copied. JPEG pictures are decoded with ChaN's TJpgDec.
+it. No MAME code is copied. The Cybiko Classic follows Dan Berkowitz's
+[ReBiko](https://github.com/RetroCodeRamen/rebiko) (MIT), which worked out
+the Classic's hardware: its memory map, DataFlash, radio framing and more. JPEG pictures are decoded with ChaN's TJpgDec.
 The details and licenses are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## License

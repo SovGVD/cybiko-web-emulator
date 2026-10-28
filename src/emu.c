@@ -1,4 +1,4 @@
-/* The Cybiko Xtreme emulator in a web page: the machine from Dragonfruit
+/* The Cybiko emulator in a web page, an Xtreme or a Classic: the machine from Dragonfruit
  * (deps/dragonfruit/src/components/cybiko) and the CyWIG gate from
  * cybiko-browser (deps/cybiko-browser/gate), built with Emscripten.
  *
@@ -10,7 +10,10 @@
  * Radio: what this Cybiko sends goes to its own gate and to the page, which
  * passes it to the other Cybikos (other tabs, the relay). What comes back
  * from them goes to this Cybiko only. The gate is heard by this Cybiko only,
- * so every tab has its own internet and nobody sees anyone else's gate. */
+ * so every tab has its own internet and nobody sees anyone else's gate.
+ *
+ * The Classic (emu_classic before the buffers) has no RAM disk, cartridge
+ * or gate: CyOS 1.2 keeps its files in the DataFlash, and has no WAP. */
 #include <emscripten.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -39,6 +42,7 @@ static uint32_t disk_size;
 static cy_gate_t *gate;
 static cyb_net_t net;
 static bool started;
+static bool classic;                /* a Cybiko Classic, not an Xtreme */
 static uint8_t lum[CY_LCD_W * CY_LCD_H];
 static uint32_t rf_full;            /* packets the radio queue had no room for */
 
@@ -55,6 +59,11 @@ static void logf_(const char *fmt, ...)
 
 /* ---- buffers the page fills before emu_start ---- */
 
+/* Make this a Cybiko Classic: call first, before emu_flash. */
+EMSCRIPTEN_KEEPALIVE void emu_classic(void) { if (!flash) classic = true; }
+EMSCRIPTEN_KEEPALIVE uint32_t emu_flash_size(void) { return classic ? CY_AT45_SIZE : CY_FLASH_SIZE; }
+EMSCRIPTEN_KEEPALIVE uint32_t emu_clock_hz(void) { return classic ? CY_CLASSIC_CLOCK_HZ : CY_CLOCK_HZ; }
+
 EMSCRIPTEN_KEEPALIVE uint8_t *emu_rom(void)
 {
     if (!rom) rom = calloc(1, CY_ROM_BUF);
@@ -63,8 +72,23 @@ EMSCRIPTEN_KEEPALIVE uint8_t *emu_rom(void)
 
 EMSCRIPTEN_KEEPALIVE uint8_t *emu_flash(void)
 {
-    if (!flash) flash = calloc(1, CY_FLASH_SIZE);
+    if (!flash) flash = calloc(1, emu_flash_size());
     return flash;
+}
+
+/* The Classic's flash image was len bytes: a 512 KB AT45DB041 dump gets the
+ * rest of the 1 MB chip as free space. 0, or -1 when len is no Classic's. */
+EMSCRIPTEN_KEEPALIVE int emu_classic_flash(uint32_t len)
+{
+    if (len == CY_AT45_SIZE) return 0;
+    if (len != CY_AT45_DB041_SIZE) {
+        logf_("flash: %u bytes, not a Cybiko Classic flash image (%u or %u)", (unsigned)len,
+              (unsigned)CY_AT45_DB041_SIZE, (unsigned)CY_AT45_SIZE);
+        return -1;
+    }
+    cybiko_at45_format_free(flash, len / CY_AT45_PAGE);
+    logf_("flash: 512 KB dump, the other 512 KB of the 1 MB flash made free space");
+    return 0;
 }
 
 /* size: a multiple of 64 KB up to CY_DISK_MAX (rounded and clamped here). */
@@ -102,6 +126,7 @@ EMSCRIPTEN_KEEPALIVE uint8_t *emu_scratch(uint32_t len)
  * -2 bad name. */
 EMSCRIPTEN_KEEPALIVE int emu_disk_put(const char *name, uint32_t len)
 {
+    if (!disk) { logf_("disk: %s not copied: this Cybiko has no RAM disk", name); return -2; }
     uint32_t date = (uint32_t)((int64_t)js_wall_time() + 2208988800LL);   /* 1970 -> 1900 */
     int r = cy_disk_write(disk, disk_size, name, scratch, len, date);
     logf_("disk: %s (%u bytes) %s", name, (unsigned)len,
@@ -122,7 +147,7 @@ EMSCRIPTEN_KEEPALIVE const char *emu_disk_list(void)
 {
     static char out[8192];
     out[0] = 0;
-    cy_disk_list(disk, disk_size, list_one, out);
+    if (disk) cy_disk_list(disk, disk_size, list_one, out);
     return out;
 }
 
@@ -130,13 +155,13 @@ EMSCRIPTEN_KEEPALIVE const char *emu_disk_list(void)
 EMSCRIPTEN_KEEPALIVE int32_t emu_disk_read(const char *name)
 {
     cy_disk_file_t f;
-    if (!cy_disk_find(disk, disk_size, name, &f)) return -1;
+    if (!disk || !cy_disk_find(disk, disk_size, name, &f)) return -1;
     uint8_t *buf = emu_scratch(f.size ? f.size : 1);
     if (!buf) return -1;
     return cy_disk_read(disk, disk_size, name, buf, f.size);
 }
 
-EMSCRIPTEN_KEEPALIVE uint32_t emu_disk_free(void) { return cy_disk_free(disk, disk_size); }
+EMSCRIPTEN_KEEPALIVE uint32_t emu_disk_free(void) { return disk ? cy_disk_free(disk, disk_size) : 0; }
 
 /* Puts the native Browser app (cybiko-browser cyapp/) on the disk unless the
  * same one is there. */
@@ -159,6 +184,7 @@ static void install_browser(void)
  * start: returns a CY_BOOT_ value. */
 EMSCRIPTEN_KEEPALIVE int emu_stage_boot(uint32_t len)
 {
+    if (classic) { logf_("CyOS update: not for the Classic; ignored"); return CY_BOOT_BAD_IMAGE; }
     int r = cybiko_flash_stage_boot(flash, scratch, len);
     logf_("CyOS update: %s", r == CY_BOOT_OK ? "installing" : r == CY_BOOT_TOO_BIG ? "too big" :
                              r == CY_BOOT_NO_LOADER ? "no CyOS flash to install it on" : "not a CyOS update image");
@@ -173,7 +199,7 @@ static size_t con_len;
 static void on_tx(void *user, int port, uint8_t b)
 {
     (void)user;
-    if (port != 1) return;              /* SCI2 is the radio, handled by cy_rf.c */
+    if (port != (classic ? 2 : 1)) return;  /* the console: the Xtreme's SCI1, the Classic's SCI2 */
     if (b == '\n' || con_len == sizeof con - 1) {
         con[con_len] = 0;
         if (con_len) logf_("cyos: %s", con);
@@ -209,7 +235,7 @@ static void on_speaker(void *user, float freq, float duty)
 /* Make the samples for the emulated time run so far. */
 static void make_sound(void)
 {
-    uint64_t due = h8s_time(&m.cpu) * RATE / CY_CLOCK_HZ;
+    uint64_t due = h8s_time(&m.cpu) * RATE / cybiko_clock_hz(&m);
     static int16_t music[1024];
     static uint8_t in[4096];
     while (samples_done < due) {
@@ -341,11 +367,28 @@ static uint32_t on_app_call(void *user, uint32_t fn, uint32_t arg)
     return 0;
 }
 
+/* The Classic: no disk, cartridge or gate. Its ID is not in a known flash
+ * record, so it is put into CyOS's RAM once CyOS runs (cybiko_set_unit_id);
+ * the dump's own (00004c77) has a zero top byte, so this one does too. */
+static int start_classic(uint32_t id24)
+{
+    cy_host_t host = { .serial_tx = on_tx, .wall_time = wall_time, .speaker = on_speaker, .rf_send = on_rf };
+    ram = calloc(1, CY_CLASSIC_RAM_SIZE);
+    if (!ram) return 0;
+    cybiko_init_classic(&m, &host, rom, flash, ram);
+    if (id24) cybiko_set_unit_id(&m, id24 & 0xffffffu);
+    if (id24) logf_("Cybiko Classic, ID %08x", (unsigned)cybiko_unit_id(&m));
+    else logf_("Cybiko Classic, the dump's own ID");
+    started = true;
+    return 1;
+}
+
 /* id24: the low 24 bits of this tab's Cybiko ID (the top byte stays the
  * dump's), 0 keeps the dump's ID. gate_on: run a CyWIG for this Cybiko. */
 EMSCRIPTEN_KEEPALIVE int emu_start(uint32_t id24, int gate_on, const char *home, int cart)
 {
-    if (started || !rom || !flash || !disk) return 0;
+    if (started || !rom || !flash || (!disk && !classic)) return 0;
+    if (classic) return start_classic(id24);
     install_browser();
     cy_host_t host = { .serial_tx = on_tx, .wall_time = wall_time, .speaker = on_speaker,
                        .rf_send = on_rf, .app_call = on_app_call, .card_read = card_read,
@@ -403,21 +446,21 @@ EMSCRIPTEN_KEEPALIVE int emu_lcd_ready(void)
     return 1;
 }
 
-/* Runs about `states` CPU states (18.432 MHz), 1 ms at a time, with the gate
- * between. Returns the emulated milliseconds so far. */
+/* Runs about `states` CPU states (emu_clock_hz), 1 ms at a time, with the
+ * gate between. Returns the emulated milliseconds so far. */
 EMSCRIPTEN_KEEPALIVE double emu_run(int32_t states)
 {
     if (!started) return 0;
-    const int32_t chunk = CY_CLOCK_HZ / 1000;
+    const int32_t chunk = (int32_t)(cybiko_clock_hz(&m) / 1000);
     while (states > 0) {
         int32_t did = cybiko_run(&m, states < chunk ? states : chunk);
         if (did <= 0) did = 1;
         states -= did;
-        if (gate) cy_gate_poll(gate, (uint32_t)(m.cpu.cycles / (CY_CLOCK_HZ / 1000)));
+        if (gate) cy_gate_poll(gate, (uint32_t)(m.cpu.cycles / chunk));
         make_sound();
         lcd_watch();
     }
-    return (double)m.cpu.cycles / (CY_CLOCK_HZ / 1000);
+    return (double)m.cpu.cycles / chunk;
 }
 
 EMSCRIPTEN_KEEPALIVE void emu_key(int key, int down) { if (started) cybiko_key(&m, key, down != 0); }
@@ -448,7 +491,7 @@ EMSCRIPTEN_KEEPALIVE int emu_led(void) { return started ? cybiko_led(&m) : 0; }
 EMSCRIPTEN_KEEPALIVE int emu_kbd_layout(void)
 {
     static const uint8_t code[] = { 0x7a, 0x06, 0x00, 0x48, 0x27, 0x16 };   /* mov.l #482716,er6 */
-    if (!started || memcmp(m.ram + 0xa14fc, code, sizeof code)) return 0;
+    if (!started || classic || memcmp(m.ram + 0xa14fc, code, sizeof code)) return 0;
     const uint8_t *p = m.ram + 0xb98a8;
     uint32_t table = (uint32_t)p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
     return table == 0x482f16;
@@ -462,18 +505,28 @@ EMSCRIPTEN_KEEPALIVE uint32_t emu_unit_id(void) { return started ? cybiko_unit_i
 /* True (and clears the marks) when the RAM disk changed since the last call. */
 EMSCRIPTEN_KEEPALIVE int emu_disk_dirty(void)
 {
+    if (!disk) return 0;
     bool dirty = false;
     for (size_t i = 0; i < sizeof m.disk_dirty / sizeof m.disk_dirty[0]; i++) dirty |= m.disk_dirty[i] != 0;
     memset(m.disk_dirty, 0, sizeof m.disk_dirty);
     return dirty;
 }
 
-/* The flash to save, with the dump's own Cybiko ID, or NULL when it has not
- * changed. During a CyOS update it waits until the writes stop (the caller
- * asks every few seconds). */
+/* The flash to save (emu_flash_size bytes), with the dump's own Cybiko ID,
+ * or NULL when it has not changed. During a CyOS update it waits until the
+ * writes stop (the caller asks every few seconds). The Classic's is the whole
+ * DataFlash, CyOS's files and all. */
 static uint32_t flash_writes_seen;
 EMSCRIPTEN_KEEPALIVE uint8_t *emu_flash_to_save(int updating)
 {
+    if (started && classic) {
+        static uint32_t bits[CY_AT45_PAGES / 32];
+        if (!cybiko_at45_take_dirty(&m, bits)) return NULL;
+        uint8_t *copy = emu_scratch(CY_AT45_SIZE);
+        if (copy) memcpy(copy, flash, CY_AT45_SIZE);
+        else logf_("save: no memory for a copy of the flash; not saved");
+        return copy;
+    }
     if (!started || !m.flash.dirty) return NULL;
     if (updating) {
         bool settled = m.flash.writes == flash_writes_seen;

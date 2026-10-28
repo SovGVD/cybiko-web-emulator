@@ -8,11 +8,13 @@
 "use strict";
 importScripts("idb.js", "emu.js");
 
-const CLOCK = 18432000;
+let CLOCK = 18432000;         /* emu_clock_hz: the Xtreme's, the Classic's is lower */
 let M = null;                 /* the wasm module */
 let settings = {};
-let slot = 1;                 /* which Cybiko of this browser (app.js) */
-const slotKey = k => slot > 1 ? `${k}#${slot}` : k;
+let slot = 1;                 /* which Cybiko of this profile (app.js) */
+let prefix = "";              /* the profile's keys in the store (app.js profileKey) */
+let classic = false;
+const slotKey = k => slot > 1 ? `${prefix}${k}#${slot}` : prefix + k;
 let updating = false;         /* a CyOS update is being installed */
 let lastLcd = 0;
 
@@ -191,7 +193,7 @@ let diskNew = false;
 let cardSaving = false;
 async function save() {
     if (!M) return;
-    if ((M._emu_disk_dirty() || diskNew) && !diskSaving) {
+    if (!classic && (M._emu_disk_dirty() || diskNew) && !diskSaving) {
         diskSaving = true;
         diskNew = false;
         const d = M.HEAPU8.slice(M._emu_disk(M._emu_disk_size()), M._emu_disk(M._emu_disk_size()) + M._emu_disk_size());
@@ -212,18 +214,18 @@ async function save() {
         };
         try {
             walk("/card");
-            await store.set("card", files);
+            await store.set(prefix + "card", files);
             postMessage({ t: "card" });
         } catch (e) { log(`card: CyOS's changes not saved: ${e}`); }
         cardSaving = false;
     }
     const p = M._emu_flash_to_save(updating ? 1 : 0);
     if (p) {
-        const f = M.HEAPU8.slice(p, p + 0x80000);
+        const f = M.HEAPU8.slice(p, p + M._emu_flash_size());
         try {
             await store.set(slotKey("flash"), f);
-            log(updating ? "save: CyOS update installed, flash saved" : "save: reprogrammed flash saved");
-            if (updating) { updating = false; await store.del("boot"); }
+            log(classic ? "save: flash saved (CyOS and its files)" : updating ? "save: CyOS update installed, flash saved" : "save: reprogrammed flash saved");
+            if (updating) { updating = false; await store.del(prefix + "boot"); }
         } catch (e) { log(`save: flash not saved: ${e}`); }
     }
 }
@@ -246,6 +248,7 @@ function tick() {
     last = now;
     if (ms > 100) ms = 100;                    /* fell behind: let emulated time slip */
     emuMs = M._emu_run(Math.round(ms * CLOCK / 1000));
+    if (keyUps.length) keysDue();
     sound();
     const led = M._emu_led();
     if (led !== ledShown) { ledShown = led; postMessage({ t: "led", led }); }
@@ -268,6 +271,8 @@ let frameVer = -1, ledShown = -1, kbdShown = -1;
 async function start(msg) {
     settings = msg.settings || {};
     slot = msg.slot || 1;
+    prefix = msg.prefix || "";
+    classic = msg.model === "classic";
     M = await CybikoModule({
         onLog: log,
         onRadio,
@@ -275,15 +280,18 @@ async function start(msg) {
         print: log,
         printErr: line => log("wasm: " + line),
     });
+    if (classic) M._emu_classic();
+    CLOCK = M._emu_clock_hz();
     M.HEAPU8.set(msg.rom.subarray(0, 0x8000), M._emu_rom());
-    M.HEAPU8.set(msg.flash, M._emu_flash());
+    M.HEAPU8.set(msg.flash.subarray(0, M._emu_flash_size()), M._emu_flash());
+    if (classic) { startClassic(msg); return; }
     const size = msg.disk ? Math.max(msg.disk.length, msg.diskSize) : msg.diskSize;
     const dp = M._emu_disk(size);
     if (msg.disk) M.HEAPU8.set(msg.disk.subarray(0, M._emu_disk_size()), dp);
     if (msg.boot) {
         M.HEAPU8.set(msg.boot, M._emu_scratch(msg.boot.length));
         updating = M._emu_stage_boot(msg.boot.length) === 0;
-        if (!updating) await store.del("boot");
+        if (!updating) await store.del(prefix + "boot");
     }
     let apps = msg.apps || [];
     const hasSoftware = () => M.UTF8ToString(M._emu_disk_list()).toLowerCase().split("\n").some(l => l.startsWith("mp3player.app\t"));
@@ -318,12 +326,7 @@ async function start(msg) {
         log("could not start the machine");
         return;
     }
-    radioSetup();
-    last = performance.now();
-    setInterval(tick, 10);
-    setInterval(save, 3000);
-    setInterval(status, 2000);
-    postMessage({ t: "started" });
+    running();
     files();
     if (cart === 2 || (cart === 1 && cardFiles)) {
         const names = M.UTF8ToString(M._emu_disk_list()).split("\n").map(l => l.split("\t")[0].toLowerCase());
@@ -332,6 +335,50 @@ async function start(msg) {
             log(`MP3 cartridge: its software is not on the Cybiko (no ${need.join(", ")}), so CyOS will not see the card. ` +
                 "Add MP3.cap from the MP3 cartridge's CD with \"Add files to the Cybiko\".");
     }
+}
+
+/* The Classic: only its flash (CyOS 1.2 keeps its files there); no RAM
+ * disk, cartridge or gate, so files, apps and the card are left out. */
+function startClassic(msg) {
+    if (M._emu_classic_flash(msg.flash.length) < 0) { postMessage({ t: "badflash" }); return; }
+    if (msg.apps && msg.apps.length) log(`files: ${msg.apps.length} files not copied: the Classic has no RAM disk`);
+    if (!M._emu_start(msg.id24, 0, 0, 0)) {
+        log("could not start the machine");
+        return;
+    }
+    running();
+}
+
+function running() {
+    radioSetup();
+    last = performance.now();
+    setInterval(tick, 10);
+    setInterval(save, 3000);
+    setInterval(status, 2000);
+    postMessage({ t: "started" });
+}
+
+/* A key is held for at least keyMinMs of emulated time: a quick tap can
+ * come down and up between two runs, and CyOS (the Classic's above all)
+ * only looks at the keys every few milliseconds. */
+const keyMinMs = () => classic ? 100 : 40;
+const keyDownAt = new Map(), keyUps = [];
+function key(k, down) {
+    if (!M) return;
+    if (down) {
+        const i = keyUps.findIndex(u => u.k === k);
+        if (i >= 0) keyUps.splice(i, 1);
+        keyDownAt.set(k, emuMs);
+        M._emu_key(k, 1);
+    } else if (emuMs - (keyDownAt.get(k) ?? -1e9) < keyMinMs()) {
+        keyUps.push({ k, at: keyDownAt.get(k) + keyMinMs() });
+    } else {
+        M._emu_key(k, 0);
+    }
+}
+function keysDue() {
+    for (let i = keyUps.length - 1; i >= 0; i--)
+        if (emuMs >= keyUps[i].at) { M._emu_key(keyUps[i].k, 0); keyUps.splice(i, 1); }
 }
 
 function files() {
@@ -345,7 +392,7 @@ onmessage = async e => {
     const m = e.data;
     switch (m.t) {
     case "start": start(m); break;
-    case "key": if (M) M._emu_key(m.k, m.down ? 1 : 0); break;
+    case "key": key(m.k, m.down); break;
     case "files": files(); break;
     case "getfile": {
         if (!M) break;
@@ -359,6 +406,11 @@ onmessage = async e => {
     }
     case "getdisk": {
         if (!M) break;
+        if (classic) {                          /* the Classic's files are in its flash */
+            const p = M._emu_flash();
+            postMessage({ t: "disk", data: M.HEAPU8.slice(p, p + M._emu_flash_size()) });
+            break;
+        }
         const p = M._emu_disk(M._emu_disk_size());
         postMessage({ t: "disk", data: M.HEAPU8.slice(p, p + M._emu_disk_size()) });
         break;
