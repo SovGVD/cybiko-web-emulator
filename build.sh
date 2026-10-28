@@ -15,7 +15,7 @@ emcc -O3 -std=gnu11 -D_GNU_SOURCE -Wall -Wno-format-truncation \
     -I$CB/include -I$CB/gate -I$CB/src -I$CB/third_party/tjpgd -Isrc \
     src/emu.c src/net_web.c \
     $DF/cybiko/cybiko.c $DF/cybiko/cy_periph.c $DF/cybiko/cy_devices.c $DF/cybiko/cy_dma.c \
-    $DF/cybiko/cy_disk.c $DF/cybiko/cy_hle.c $DF/cybiko/cy_rf.c $DF/cybiko/cy_cart.c \
+    $DF/cybiko/cy_disk.c $DF/cybiko/cy_hle.c $DF/cybiko/cy_rf.c $DF/cybiko/cy_cart.c $DF/cybiko/cy_classic.c \
     $DF/h8s/h8s.c $DF/cy_mp3/cy_mp3.c $DF/cy_vfat/cy_vfat.c \
     $CB/src/cy_browser.c $CB/src/cyb_cookie.c $CB/src/cyb_css.c $CB/src/cyb_font.c $CB/src/cyb_html.c \
     $CB/src/cyb_image.c $CB/src/cyb_layout.c $CB/src/cyb_text.c $CB/src/cyb_url.c \

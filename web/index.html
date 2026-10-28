@@ -3,27 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Cybiko Xtreme emulator</title>
+<title>Cybiko emulator</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
+  <div id="devices">
+    <p class="row"><label>Device <select id="dev-select" title="Each device is a Cybiko of its own, with its own firmware, files, settings and ID"></select></label>
+      <button id="dev-new" type="button">New device</button>
+      <button id="dev-rename" type="button">Rename</button>
+      <button id="dev-delete" type="button" class="danger">Delete</button></p>
+    <p id="dev-form" class="row" hidden>
+      <label>Name <input id="dev-name" type="text" maxlength="40" placeholder="My Classic"></label>
+      <label>Model <select id="dev-model"><option value="xtreme">Cybiko Xtreme</option>
+        <option value="classic">Cybiko Classic</option></select></label>
+      <button id="dev-create" type="button" class="primary">Make it</button>
+      <button id="dev-cancel" type="button">Cancel</button></p>
+  </div>
+
   <section id="setup" hidden>
-    <h2>Start your Cybiko Xtreme</h2>
-    <p>The emulator runs the Cybiko's own firmware: its boot ROM and CyOS 1.5.08. One click fetches both from
+    <h2>Start your <span class="model-name">Cybiko</span></h2>
+    <p class="xtreme-only">The emulator runs the Cybiko's own firmware: its boot ROM and CyOS 1.5.08. One click fetches both from
       <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this browser keeps them.</p>
-    <p class="row"><label><input id="quick-ru" type="checkbox"> Russian CyOS 1.5.08 (menus in Russian, Cyrillic keyboard)</label></p>
+    <p class="classic-only">The emulator runs the first Cybiko's own firmware: its boot ROM and CyOS 1.2.46, the
+      dumps of MAME's <code>cybikov1</code> set, as <a href="https://github.com/RetroCodeRamen/rebiko">ReBiko</a> ships them.
+      One click fetches both from <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this
+      browser keeps them.</p>
+    <p class="row xtreme-only"><label><input id="quick-ru" type="checkbox"> Russian CyOS 1.5.08 (menus in Russian, Cyrillic keyboard)</label></p>
     <p class="row"><button id="quick-btn" type="button" class="primary">Start the Cybiko</button>
       <span id="quick-ok"></span></p>
     <details id="own-files">
       <summary>Use my own files instead</summary>
-      <p>Pick the <b>boot ROM</b>, <code>cyrom150.bin</code> (32 KB), and the <b>flash</b>,
+      <p class="xtreme-only">Pick the <b>boot ROM</b>, <code>cyrom150.bin</code> (32 KB), and the <b>flash</b>,
         <code>cyos_v1508.bin</code> (512 KB), or MAME's Cybiko ROM set (<code>cybikov1.zip</code>), from which the page
         takes those two. A <b>CyOS update</b> (<code>*.boot</code>) is optional and installed on start. Nothing is uploaded.</p>
+      <p class="classic-only">Pick the <b>boot ROM</b>, <code>cyrom112.bin</code> (32 KB), and the <b>flash</b>,
+        <code>flash_v1246.bin</code> (528 KB), or a zip with them: MAME's <code>cybikov1.zip</code>, or a
+        <a href="https://github.com/RetroCodeRamen/rebiko/releases">ReBiko release</a>, which has them as
+        <code>roms/boot.bin</code> and <code>roms/flash.bin</code>. A saved <code>flash_saved.bin</code> (1 MB) works
+        as the flash too. Nothing is uploaded.</p>
       <p class="row"><label>MAME zip <input id="zip-file" type="file" accept=".zip"></label> <span id="zip-ok"></span></p>
       <p class="row"><label>Boot ROM <input id="rom-file" type="file"></label> <span id="rom-ok"></span></p>
       <p class="row"><label>Flash <input id="flash-file" type="file"></label> <span id="flash-ok"></span></p>
-      <p class="row"><label>CyOS update, optional
+      <p class="row xtreme-only"><label>CyOS update, optional
         <input id="boot-file" type="file" accept=".boot"></label> <span id="boot-ok"></span></p>
       <p class="row"><button id="start-btn" type="button" disabled>Start</button></p>
     </details>
@@ -34,12 +56,15 @@
     <div id="screen-wrap"><div id="screen-box"><span id="led" title="Status LED: red while the radio sends, green while it hears another Cybiko"></span><span id="status" class="status" title="This Cybiko's ID (as other Cybikos see it), tab slot, radio room, relay, radio packets and speed">not started</span><canvas id="screen" width="160" height="100"></canvas></div></div>
     <div id="keyboard"></div>
     <p class="row add"><button id="settings-btn" type="button">Settings</button>
-      <button id="add-btn" type="button">Add files to the Cybiko</button>
+      <button id="add-btn" type="button" class="xtreme-only">Add files to the Cybiko</button>
       <input id="add-file" type="file" multiple hidden></p>
-    <p class="hint">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
+    <p class="hint classic-only">PC keys: letters, digits and punctuation as on the PC, Enter, Esc, Space, arrows,
+      Tab, Backspace, Delete = Del, Shift, Ctrl = Fn, F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins,
+      F12 = On/Off. The Classic has no RAM disk or cartridge: CyOS 1.2 keeps its files in its flash.</p>
+    <p class="hint xtreme-only">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
       F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins, F11 = Menu, F12 = On/Off,
       [ ] = ( ), / = !. Drop <code>.app</code> or other files on the page (or use Add files) to put them on the Cybiko; it restarts to take them.</p>
-    <details id="software" class="guide">
+    <details id="software" class="guide xtreme-only">
       <summary>Get apps, games and the MP3 player</summary>
       <p>Tick what you want and press Install: the files come from
         <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a>, copies of the Cybiko CDs. The Cybiko restarts
@@ -65,6 +90,7 @@
     <p class="note">Cybikos in the same room hear each other (Chat, games). Tabs of this browser share it
       without the relay.</p>
     <p class="row"><label><input id="set-online" type="checkbox"> Join the room over the relay</label></p>
+    <div class="xtreme-only">
     <p class="row"><label><input id="set-gate" type="checkbox"> CyWIG gate (internet for the Browser app
       and the WAP browser)</label></p>
     <p class="row"><label>Gate home page <input id="set-home" type="url" placeholder="(the gate's own)"></label></p>
@@ -87,6 +113,7 @@
       the real card. Kept in this browser; the Cybiko sees them after a restart. What the Cybiko does on the card
       (its File Manager's Delete, files it writes) is kept too. The cartridge's software
       (<code>MP3.cap</code>) goes on the Cybiko, not the card: the page moves it there if you add it here.</p>
+    </div>
     <p class="row"><label>Volume <input id="set-volume" type="range" min="0" max="100"></label></p>
     <p class="row"><label><input id="set-vsync" type="checkbox"> Whole frames only: show the screen once the
       Cybiko has finished drawing it (off: every 33 ms, mid-drawing too)</label></p>
@@ -99,12 +126,14 @@
     <p class="row">
       <button id="set-save" type="button">Save and restart</button>
       <button id="set-close" type="button">Close</button>
-      <button id="set-files" type="button">Files on the Cybiko</button>
+      <button id="set-files" type="button" class="xtreme-only">Files on the Cybiko</button>
       <button id="backup-btn" type="button">Download backup</button>
       <button id="restore-btn" type="button">Restore backup</button>
       <input id="restore-file" type="file" hidden>
-      <button id="set-forget" type="button" class="danger">Forget everything</button>
+      <button id="set-forget" type="button" class="danger" title="Every device">Forget everything</button>
     </p>
+    <p class="note classic-only">The Classic's backup is its flash (<code>flash_saved.bin</code>, as the board
+      saves it): CyOS and its files together.</p>
     <ul id="file-list"></ul>
   </section>
 
@@ -116,7 +145,8 @@
     <a href="https://github.com/SovGVD/cybiko-web-emulator">Source</a> ·
     machine from <a href="https://github.com/SovGVD/Dragonfruit-JC4827W543-esp32">Dragonfruit</a>,
     gate from <a href="https://github.com/SovGVD/cybiko-browser">cybiko-browser</a> ·
-    hardware model after <a href="https://www.mamedev.org/">MAME</a>'s Cybiko driver by Tim Schuerewegen
+    hardware model after <a href="https://www.mamedev.org/">MAME</a>'s Cybiko driver by Tim Schuerewegen,
+    the Classic after <a href="https://github.com/RetroCodeRamen/rebiko">ReBiko</a> by Dan Berkowitz
     (<a href="https://github.com/SovGVD/cybiko-web-emulator/blob/main/THIRD-PARTY-NOTICES.md">credits</a>)
   </footer>
 </main>

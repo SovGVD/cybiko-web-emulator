@@ -120,3 +120,9 @@ button.primary { background: #3d6a86; border-color: #5b8aa6; font-weight: 600; p
 #catalog label > span:nth-child(2) { white-space: nowrap; }
 button.small { padding: 1px 8px; font-size: 12px; margin-left: 6px; }
 #card-list li { margin: 3px 0; }
+
+/* the device's model: what the other one has is hidden */
+body.classic .xtreme-only, body:not(.classic) .classic-only { display: none !important; }
+#devices .row { margin: 6px 0; }
+#devices label { margin-right: 6px; }
+#dev-form input[type=text] { display: inline-block; width: 12em; margin-top: 0; }
