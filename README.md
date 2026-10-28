@@ -13,7 +13,7 @@ Classics, or both) and switch between them.
 | --- | --- |
 | ![Xtreme](docs/images/xtreme-desktop.png) | ![Classic](docs/images/classic-desktop.png) |
 
-| Chat between two browsers | The Browser app through the gate |
+| Two emulated Cybikos chatting (each in its own browser) | The Browser app through the gate |
 | --- | --- |
 | ![Chat](docs/images/chat-two-browsers.png) | ![Browser](docs/images/browser-pypi.png) |
 
