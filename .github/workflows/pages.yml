@@ -30,6 +30,9 @@ jobs:
         with:
           version: 6.0.13
       - run: ./build.sh
+      # every file the page loads gets this commit in its address, so a
+      # browser's cache never mixes two versions
+      - run: sed -i "s/?v=dev/?v=${GITHUB_SHA::8}/g" web/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

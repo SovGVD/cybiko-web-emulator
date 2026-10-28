@@ -4,23 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Cybiko emulator</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=dev">
 </head>
 <body>
 <main>
-  <div id="devices">
-    <p class="row"><label>Device <select id="dev-select" title="Each device is a Cybiko of its own, with its own firmware, files, settings and ID"></select></label>
-      <button id="dev-new" type="button">New device</button>
-      <button id="dev-rename" type="button">Rename</button>
-      <button id="dev-delete" type="button" class="danger">Delete</button></p>
-    <p id="dev-form" class="row" hidden>
-      <label>Name <input id="dev-name" type="text" maxlength="40" placeholder="My Classic"></label>
-      <label>Model <select id="dev-model"><option value="xtreme">Cybiko Xtreme</option>
-        <option value="classic">Cybiko Classic</option></select></label>
-      <button id="dev-create" type="button" class="primary">Make it</button>
-      <button id="dev-cancel" type="button">Cancel</button></p>
-  </div>
-
   <section id="setup" hidden>
     <h2>Start your <span class="model-name">Cybiko</span></h2>
     <p class="xtreme-only">The emulator runs the Cybiko's own firmware: its boot ROM and CyOS 1.5.08. One click fetches both from
@@ -82,6 +69,20 @@
 
   <section id="settings" hidden>
     <h2>Settings</h2>
+    <div id="devices">
+      <p class="row"><label>Device <select id="dev-select" title="Each device is a Cybiko of its own, with its own firmware, files, settings and ID"></select></label>
+        <button id="dev-new" type="button">New device</button>
+        <button id="dev-rename" type="button">Rename</button>
+        <button id="dev-delete" type="button" class="danger">Delete</button></p>
+      <p id="dev-form" class="row" hidden>
+        <label>Name <input id="dev-name" type="text" maxlength="40" placeholder="My Classic"></label>
+        <label>Model <select id="dev-model"><option value="xtreme">Cybiko Xtreme</option>
+          <option value="classic">Cybiko Classic</option></select></label>
+        <button id="dev-create" type="button" class="primary">Make it</button>
+        <button id="dev-cancel" type="button">Cancel</button></p>
+      <p class="note">Each device is a Cybiko of its own, an Xtreme or a Classic, with its own firmware, files,
+        settings and ID.</p>
+    </div>
     <p class="row"><label>Proxy and radio relay URL
       <input id="set-proxy" type="url" placeholder="https://cybiko-relay.example.workers.dev"></label></p>
     <p class="note">Gives the CyWIG gate its internet and links this Cybiko to others in the same room.
@@ -151,12 +152,12 @@
   </footer>
 </main>
 <div id="drop" hidden>Drop .app files to install them</div>
-<script src="config.js"></script>
-<script src="idb.js"></script>
-<script src="lib/util.js"></script>
-<script src="lib/bzip2.js"></script>
-<script src="lib/cap.js"></script>
-<script src="catalog.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=dev"></script>
+<script src="idb.js?v=dev"></script>
+<script src="lib/util.js?v=dev"></script>
+<script src="lib/bzip2.js?v=dev"></script>
+<script src="lib/cap.js?v=dev"></script>
+<script src="catalog.js?v=dev"></script>
+<script src="app.js?v=dev"></script>
 </body>
 </html>

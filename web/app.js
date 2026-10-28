@@ -4,6 +4,10 @@
 "use strict";
 
 const $ = id => document.getElementById(id);
+/* "?v=<commit>" on this script (the Pages workflow stamps index.html): the
+ * worker, emu.js and emu.wasm get it too, so a browser never mixes files
+ * of two versions out of its cache */
+const VERSION = document.currentScript ? new URL(document.currentScript.src).search : "";
 const K = (row, bit) => (row << 4) | bit;          /* CY_KEY in cybiko.h */
 const KEY = {
     F7: K(0, 0), M: K(0, 8), K: K(0, 11), I: K(0, 12), O: K(0, 13), L: K(0, 14), RPAREN: K(0, 9), COMMA: K(0, 10),
@@ -840,7 +844,14 @@ async function boot(apps) {
     if (!slot) slot = await claimSlot();
     const [rom, base, flash, disk, boot] = await Promise.all(
         [pk("rom"), pk("flash"), slotKey("flash"), slotKey("disk"), pk("boot")].map(k => store.get(k)));
-    if (!rom || !base) { $("setup").hidden = false; $("machine").hidden = true; return; }
+    if (!rom || !base) {
+        /* no firmware yet: the device list goes with the setup (Settings is not reachable) */
+        $("setup").append($("devices"));
+        $("setup").hidden = false;
+        $("machine").hidden = true;
+        return;
+    }
+    $("settings").querySelector("h2").after($("devices"));
     id24 = await store.get(slotKey("id24"));
     if (!id24) {
         id24 = 1 + Math.floor(Math.random() * 0xfffffe);
@@ -850,7 +861,7 @@ async function boot(apps) {
     fitScreen();
     putDone = [];
     apps = [...(apps || []), ...await softwareOffCard()];
-    worker = new Worker("emu-worker.js");
+    worker = new Worker("emu-worker.js" + VERSION);
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
     const card = await store.get(pk("card")) || [];
