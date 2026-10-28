@@ -37,7 +37,8 @@ $("log-box").addEventListener("toggle", showLog);
 /* ---- settings ---- */
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
-                   disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true, vsync: true };
+                   disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true, vsync: true,
+                   palette: "lcd" };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
@@ -59,6 +60,7 @@ function fillSettings() {
     $("set-cart").value = settings.cart;
     $("set-cart-soft").checked = settings.cartSoft;
     $("set-vsync").checked = settings.vsync;
+    $("set-palette").value = settings.palette;
 }
 
 function readSettings() {
@@ -66,13 +68,14 @@ function readSettings() {
              online: $("set-online").checked, gate: $("set-gate").checked, home: $("set-home").value.trim(),
              disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
              cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked,
-             vsync: $("set-vsync").checked };
+             vsync: $("set-vsync").checked, palette: $("set-palette").value };
 }
 
 $("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
 $("set-close").onclick = () => { $("settings").hidden = true; };
 $("set-volume").oninput = () => { settings.volume = +$("set-volume").value; setVolume(); };
 $("set-zoom").onchange = () => { settings.zoom = +$("set-zoom").value; fitScreen(); };
+$("set-palette").onchange = () => { settings.palette = $("set-palette").value; setPalette(); };
 $("set-save").onclick = async () => {
     settings = readSettings();
     await store.set("settings", settings);
@@ -93,15 +96,22 @@ $("set-forget").onclick = async () => {
 const canvas = $("screen");
 const ctx = canvas.getContext("2d");
 const image = ctx.createImageData(160, 100);
-/* a grey-green LCD: lum 0 black, 255 the panel colour (as cybiko_sdl.c) */
+/* settings.palette "lcd": a grey-green LCD, lum 0 black, 255 the panel colour
+   (as cybiko_sdl.c); "gray": plain greys, 0 black, 255 white */
 const PAL = new Uint32Array(256);
-for (let l = 0; l < 256; l++) {
-    const r = 0x18 + (l * (0xc6 - 0x18) / 255 | 0), g = 0x1c + (l * (0xd0 - 0x1c) / 255 | 0),
-          b = 0x18 + (l * (0xbc - 0x18) / 255 | 0);
-    PAL[l] = 0xff000000 | b << 16 | g << 8 | r;
-}
 const pixels = new Uint32Array(image.data.buffer);
+let lastLum = null;
+function setPalette() {
+    const gray = settings.palette === "gray";
+    for (let l = 0; l < 256; l++) {
+        const r = gray ? l : 0x18 + (l * (0xc6 - 0x18) / 255 | 0), g = gray ? l : 0x1c + (l * (0xd0 - 0x1c) / 255 | 0),
+              b = gray ? l : 0x18 + (l * (0xbc - 0x18) / 255 | 0);
+        PAL[l] = 0xff000000 | b << 16 | g << 8 | r;
+    }
+    if (lastLum) draw(lastLum);
+}
 function draw(lum) {
+    lastLum = lum;
     for (let i = 0; i < lum.length; i++) pixels[i] = PAL[lum[i]];
     ctx.putImageData(image, 0, 0);
 }
@@ -784,5 +794,6 @@ window.addEventListener("pagehide", () => worker && worker.postMessage({ t: "sav
 (async () => {
     buildKeyboard();
     await loadSettings();
+    setPalette();
     boot();
 })();
