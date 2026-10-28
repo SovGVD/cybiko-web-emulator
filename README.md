@@ -9,6 +9,10 @@ Classics, or both) and switch between them.
 
 ![The page](docs/images/page.png)
 
+| Cybiko Xtreme, Main Desktop | Cybiko Classic, Main Desktop |
+| --- | --- |
+| ![Xtreme](docs/images/xtreme-desktop.png) | ![Classic](docs/images/classic-desktop.png) |
+
 | Chat between two browsers | The Browser app through the gate |
 | --- | --- |
 | ![Chat](docs/images/chat-two-browsers.png) | ![Browser](docs/images/browser-pypi.png) |
@@ -76,7 +80,8 @@ cycle, mixed with the cartridge's sound.
 The RAM disk (4 MB by default, Settings) and a reprogrammed flash are saved
 every few seconds. The screen uses integer zoom only.
 
-**Devices.** The Device list at the top of the page holds every Cybiko this
+**Devices.** The Device list in Settings (on the first screen while a new
+device has no firmware yet) holds every Cybiko this
 browser keeps: **New device** makes one, a Cybiko Xtreme or a Cybiko Classic,
 with its own firmware, files, settings and Cybiko ID (it starts with the
 current device's settings). Picking another device saves this one and opens

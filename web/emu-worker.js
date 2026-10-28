@@ -6,7 +6,8 @@
  * BroadcastChannel and to everyone else in the same room over the relay's
  * WebSocket (proxy/). A tab that hears a packet both ways takes it once. */
 "use strict";
-importScripts("idb.js", "emu.js");
+const VERSION = self.location.search;           /* app.js VERSION */
+importScripts("idb.js" + VERSION, "emu.js" + VERSION);
 
 let CLOCK = 18432000;         /* emu_clock_hz: the Xtreme's, the Classic's is lower */
 let M = null;                 /* the wasm module */
@@ -274,6 +275,7 @@ async function start(msg) {
     prefix = msg.prefix || "";
     classic = msg.model === "classic";
     M = await CybikoModule({
+        locateFile: (file, dir) => dir + file + VERSION,
         onLog: log,
         onRadio,
         net,
@@ -358,10 +360,11 @@ function running() {
     postMessage({ t: "started" });
 }
 
-/* A key is held for at least keyMinMs of emulated time: a quick tap can
- * come down and up between two runs, and CyOS (the Classic's above all)
- * only looks at the keys every few milliseconds. */
-const keyMinMs = () => classic ? 100 : 40;
+/* A key is held for at least KEY_MIN_MS of emulated time: a quick tap can
+ * come down and up between two runs, and CyOS only takes a key that stays
+ * down for a few of its key scans (shorter letters were lost on the
+ * Xtreme's nickname screen, at 40 ms). */
+const KEY_MIN_MS = 100;
 const keyDownAt = new Map(), keyUps = [];
 function key(k, down) {
     if (!M) return;
@@ -370,8 +373,8 @@ function key(k, down) {
         if (i >= 0) keyUps.splice(i, 1);
         keyDownAt.set(k, emuMs);
         M._emu_key(k, 1);
-    } else if (emuMs - (keyDownAt.get(k) ?? -1e9) < keyMinMs()) {
-        keyUps.push({ k, at: keyDownAt.get(k) + keyMinMs() });
+    } else if (emuMs - (keyDownAt.get(k) ?? -1e9) < KEY_MIN_MS) {
+        keyUps.push({ k, at: keyDownAt.get(k) + KEY_MIN_MS });
     } else {
         M._emu_key(k, 0);
     }
