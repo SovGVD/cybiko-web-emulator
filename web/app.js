@@ -53,93 +53,45 @@ function showLog() {
 }
 $("log-box").addEventListener("toggle", showLog);
 
-/* ---- devices (profiles): each one is a Cybiko of its own, an Xtreme or a
- * Classic, with its own firmware, files, settings and IDs. The first keeps
- * the store's plain keys (as before there were devices), the others put
- * "pN:" in front. A tab runs the device in its address (?device=N), else
- * the one picked last. ---- */
+/* ---- the model: an Xtreme or a Classic, picked in Settings. Each has its
+ * own firmware, files, settings and IDs in the store: the Xtreme the plain
+ * keys, the Classic "pN:" in front (N from the device list of an earlier
+ * version of this page, if it made a Classic, else 2). ---- */
 
 const MODELS = { xtreme: "Cybiko Xtreme", classic: "Cybiko Classic" };
-let profiles = { list: [{ id: 1, name: "My Xtreme", model: "xtreme" }], current: 1 };
-let profile = profiles.list[0];
+let profile = { id: 1, model: "xtreme" };
 let classic = false;
 const prefixOf = p => p.id === 1 ? "" : `p${p.id}:`;
 const pk = k => prefixOf(profile) + k;
-/* the store's keys of a device: pN:..., or for the first, all but the others' */
-const keyOf = (p, k) => p.id === 1 ? !/^p\d+:/.test(k) && k !== "profiles" && k !== "mp3cap" : k.startsWith(prefixOf(p));
 
-async function loadProfiles() {
+async function loadModel() {
+    let old = null, model = null;
     try {
-        const p = await store.get("profiles");
-        if (p && Array.isArray(p.list) && p.list.length) profiles = p;
-    } catch (e) { log(`devices: could not read the list (${e}); using the first`); }
-    const want = +new URLSearchParams(location.search).get("device");
-    profile = profiles.list.find(p => p.id === want) || profiles.list.find(p => p.id === profiles.current) || profiles.list[0];
-    if (want && profile.id !== want) log(`devices: there is no device ${want}; running ${profile.name}`);
-    classic = profile.model === "classic";
+        old = await store.get("profiles");
+        model = await store.get("model");
+    } catch (e) { log(`model: could not read the choice (${e}); running the Xtreme`); }
+    const list = old && Array.isArray(old.list) ? old.list : [];
+    const oldClassic = list.find(p => p.model === "classic");
+    if (!model && old) model = (list.find(p => p.id === old.current) || {}).model;
+    classic = model === "classic";
+    profile = classic ? { id: oldClassic ? oldClassic.id : 2, model: "classic" } : { id: 1, model: "xtreme" };
+    if (list.some(p => p.id !== 1 && p !== oldClassic))
+        log("model: this browser also keeps devices from the page's earlier device list; only the first Xtreme and Classic are used");
     document.body.classList.toggle("classic", classic);
     document.title = `${MODELS[profile.model]} emulator`;
     for (const el of document.querySelectorAll(".model-name")) el.textContent = MODELS[profile.model];
-    fillProfiles();
+    $("model-select").value = profile.model;
 }
 
-function fillProfiles() {
-    const sel = $("dev-select");
-    sel.textContent = "";
-    for (const p of profiles.list) {
-        const o = document.createElement("option");
-        o.value = String(p.id);
-        o.textContent = `${p.name} (${MODELS[p.model] || p.model})`;
-        sel.appendChild(o);
-    }
-    sel.value = String(profile.id);
-}
-
-/* Saves this device (when it runs) and opens another in this tab. */
-async function switchTo(id) {
-    profiles.current = id;
-    await store.set("profiles", profiles);
+/* Saves this Cybiko (when it runs) and starts the other model. */
+$("model-select").onchange = async () => {
+    const model = $("model-select").value;
+    await store.set("model", model);
     await stopWorker();
+    log(`model: switching to the ${MODELS[model]}`);
     const u = new URL(location.href);
-    u.searchParams.set("device", String(id));
+    u.searchParams.delete("device");               /* from the earlier device list */
     location.href = u.href;
-}
-
-$("dev-select").onchange = () => switchTo(+$("dev-select").value);
-$("dev-new").onclick = () => {
-    $("dev-form").hidden = !$("dev-form").hidden;
-    $("dev-name").value = "";
-    $("dev-model").value = "classic";
-};
-$("dev-cancel").onclick = () => { $("dev-form").hidden = true; };
-$("dev-create").onclick = async () => {
-    const model = $("dev-model").value;
-    const id = Math.max(...profiles.list.map(p => p.id)) + 1;
-    const name = $("dev-name").value.trim().slice(0, 40) ||
-        `My ${model === "classic" ? "Classic" : "Xtreme"} ${profiles.list.filter(p => p.model === model).length + 1}`;
-    profiles.list.push({ id, name, model });
-    /* it starts with this device's settings; firmware, files and ID are its own */
-    await store.set(`p${id}:settings`, settings);
-    log(`devices: ${name} (${MODELS[model]}) made`);
-    switchTo(id);
-};
-$("dev-rename").onclick = async () => {
-    const name = (prompt("Name of this device", profile.name) || "").trim().slice(0, 40);
-    if (!name) return;
-    profile.name = name;
-    await store.set("profiles", profiles);
-    fillProfiles();
-};
-$("dev-delete").onclick = async () => {
-    if (profiles.list.length < 2) { alert("This is the only device. To start over, use Settings \u2192 Forget everything."); return; }
-    if (!confirm(`Delete ${profile.name}: its firmware, files, settings and IDs, in this browser?`)) return;
-    const gone = profile;
-    await stopWorker(true);
-    const keys = (await store.keys()).filter(k => typeof k === "string" && keyOf(gone, k));
-    for (const k of keys) await store.del(k);
-    profiles.list = profiles.list.filter(p => p !== gone);
-    log(`devices: ${gone.name} deleted (${keys.length} entries)`);
-    switchTo(profiles.list[0].id);
 };
 
 /* ---- settings ---- */
@@ -192,7 +144,7 @@ $("set-save").onclick = async () => {
 };
 $("set-files").onclick = () => worker && worker.postMessage({ t: "files" });
 $("set-forget").onclick = async () => {
-    if (!confirm("Forget every device: the ROMs, the flash, every Cybiko's files and the settings in this browser?")) return;
+    if (!confirm("Forget both models: the ROMs, the flash, every Cybiko's files and the settings in this browser?")) return;
     if (worker) worker.terminate();
     worker = null;
     await new Promise(ok => { const r = indexedDB.deleteDatabase("cybiko-web"); r.onsuccess = r.onerror = r.onblocked = ok; });
@@ -690,12 +642,12 @@ $("restore-file").onchange = async () => {
     if (classic) {
         /* the Classic's backup is its flash, CyOS and files together (flash_saved.bin on the board) */
         if (!flashOk(data)) { alert(`${f.name} is not a Cybiko Classic flash image (540672 or 1081344 bytes).`); return; }
-        if (!confirm(`Replace the flash of ${profile.name}, Cybiko ${slot}, with ${f.name}?`)) return;
+        if (!confirm(`Replace the flash of ${MODELS[profile.model]}, Cybiko ${slot}, with ${f.name}?`)) return;
         const w = worker;
         worker = null;
         if (w) w.terminate();
         await store.set(slotKey("flash"), data);
-        log(`files: ${profile.name}, Cybiko ${slot}: flash restored from ${f.name}`);
+        log(`files: ${MODELS[profile.model]}, Cybiko ${slot}: flash restored from ${f.name}`);
         boot();
         return;
     }
@@ -905,7 +857,7 @@ function stopWorker(drop) {
     if (drop) { w.terminate(); return Promise.resolve(); }
     return new Promise(ok => {
         const done = () => { w.terminate(); ok(); };
-        const timer = setTimeout(() => { log("devices: the worker did not answer; leaving without the last save"); done(); }, 3000);
+        const timer = setTimeout(() => { log("model: the worker did not answer; leaving without the last save"); done(); }, 3000);
         w.onmessage = e => { if (e.data.t === "saved") { clearTimeout(timer); done(); } else onWorker(e); };
         w.postMessage({ t: "save" });
     });
@@ -938,7 +890,7 @@ function onWorker(e) {
     case "disk": download(classic ? (slot > 1 ? `flash_saved-${slot}.bin` : "flash_saved.bin")
         : slot > 1 ? `ramdisk-${slot}.bin` : "ramdisk.bin", m.data); break;
     case "badflash":
-        notice(`The flash of ${profile.name} is not a Cybiko Classic flash image. Pick the files again.`, 0);
+        notice(`The flash of ${MODELS[profile.model]} is not a Cybiko Classic flash image. Pick the files again.`, 0);
         $("setup").hidden = false;
         $("machine").hidden = true;
         break;
@@ -974,7 +926,7 @@ function onWorker(e) {
     }
     case "status": {
         const r = m.radio;
-        $("status").textContent = $("status").title = `${profile.name} · ID ${m.id} · Cybiko ${slot} · room ${settings.room} · relay ${m.relay} · radio ${r.sent} out, ${r.heard} in · ${m.speed}%`;
+        $("status").textContent = $("status").title = `${MODELS[profile.model]} · ID ${m.id} · Cybiko ${slot} · room ${settings.room} · relay ${m.relay} · radio ${r.sent} out, ${r.heard} in · ${m.speed}%`;
         break;
     }
     case "saved": break;
@@ -986,7 +938,7 @@ function onWorker(e) {
 window.addEventListener("pagehide", () => worker && worker.postMessage({ t: "save" }));
 
 (async () => {
-    await loadProfiles();
+    await loadModel();
     buildKeyboard();
     await loadSettings();
     setPalette();

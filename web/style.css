@@ -125,4 +125,3 @@ button.small { padding: 1px 8px; font-size: 12px; margin-left: 6px; }
 body.classic .xtreme-only, body:not(.classic) .classic-only { display: none !important; }
 #devices .row { margin: 6px 0; }
 #devices label { margin-right: 6px; }
-#dev-form input[type=text] { display: inline-block; width: 12em; margin-top: 0; }

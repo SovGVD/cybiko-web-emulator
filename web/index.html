@@ -70,18 +70,9 @@
   <section id="settings" hidden>
     <h2>Settings</h2>
     <div id="devices">
-      <p class="row"><label>Device <select id="dev-select" title="Each device is a Cybiko of its own, with its own firmware, files, settings and ID"></select></label>
-        <button id="dev-new" type="button">New device</button>
-        <button id="dev-rename" type="button">Rename</button>
-        <button id="dev-delete" type="button" class="danger">Delete</button></p>
-      <p id="dev-form" class="row" hidden>
-        <label>Name <input id="dev-name" type="text" maxlength="40" placeholder="My Classic"></label>
-        <label>Model <select id="dev-model"><option value="xtreme">Cybiko Xtreme</option>
-          <option value="classic">Cybiko Classic</option></select></label>
-        <button id="dev-create" type="button" class="primary">Make it</button>
-        <button id="dev-cancel" type="button">Cancel</button></p>
-      <p class="note">Each device is a Cybiko of its own, an Xtreme or a Classic, with its own firmware, files,
-        settings and ID.</p>
+      <p class="row"><label>Model <select id="model-select">
+        <option value="xtreme">Cybiko Xtreme</option><option value="classic">Cybiko Classic</option></select></label></p>
+      <p class="note">The Xtreme and the Classic each keep their own firmware, files and settings in this browser.</p>
     </div>
     <p class="row"><label>Proxy and radio relay URL
       <input id="set-proxy" type="url" placeholder="https://cybiko-relay.example.workers.dev"></label></p>
@@ -133,7 +124,7 @@
       <button id="backup-btn" type="button">Download backup</button>
       <button id="restore-btn" type="button">Restore backup</button>
       <input id="restore-file" type="file" hidden>
-      <button id="set-forget" type="button" class="danger" title="Every device">Forget everything</button>
+      <button id="set-forget" type="button" class="danger" title="Both models">Forget everything</button>
     </p>
     <p class="note classic-only">The Classic's backup is its flash (<code>flash_saved.bin</code>, as the board
       saves it): CyOS and its files together.</p>
