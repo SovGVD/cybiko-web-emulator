@@ -55,8 +55,13 @@ The page has the same guide under the keyboard.
 
 Settings also has:
 
-- **Screen colours**: *LCD* (the default) tints the screen grey-green like
-  the real STN panel; *Gray* shows plain greys from black to white.
+- **Screen colours**: *LCD* tints the screen grey-green like the real STN
+  panel; *Gray* shows plain greys from black to white; *Halloween* shows
+  black ink with purple and orange greys on a pumpkin-orange panel.
+  *Seasonal* (the default) is Halloween from 24 October to 1 November and
+  LCD the rest of the year.
+
+  ![Halloween screen colours](docs/images/xtreme-desktop-halloween.png)
 - **Download backup / Restore backup**: the whole RAM disk of this tab's
   Cybiko as one file (`ramdisk.bin`), to keep or move to another browser.
 - **MP3 cartridge**: a card kept in the browser. When the cartridge is in (Settings, or files on the card) and the Cybiko lacks its software, the page installs `MP3.cap` from cybiko-roms by itself (a checkbox in Settings turns that off). Add MP3s, MXD clips or a

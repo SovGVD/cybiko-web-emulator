@@ -98,12 +98,18 @@ $("model-select").onchange = async () => {
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
                    disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true, vsync: true,
-                   palette: "lcd" };
+                   palette: "auto", v: 2 };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
     try { settings = { ...DEFAULTS, ...(await store.get(pk("settings")) || {}) }; }
     catch (e) { log(`settings: could not read (${e}); using defaults`); }
+    /* settings saved before v2 hold "lcd" because it was the only default, not
+       because it was picked: they get the new seasonal default */
+    if (!settings.v) {
+        if (settings.palette === "lcd") { settings.palette = "auto"; log("settings: screen colours lcd (old default) -> auto (seasonal)"); }
+        settings.v = 2;
+    }
     /* a local server (proxy/local.js) is its own proxy */
     if (!settings.proxy && /^(localhost|127\.|\[::1\])/.test(location.host)) settings.proxy = location.origin;
 }
@@ -128,7 +134,7 @@ function readSettings() {
              online: $("set-online").checked, gate: $("set-gate").checked, home: $("set-home").value.trim(),
              disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
              cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked,
-             vsync: $("set-vsync").checked, palette: $("set-palette").value };
+             vsync: $("set-vsync").checked, palette: $("set-palette").value, v: 2 };
 }
 
 $("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
@@ -157,15 +163,36 @@ const canvas = $("screen");
 const ctx = canvas.getContext("2d");
 const image = ctx.createImageData(160, 100);
 /* settings.palette "lcd": a grey-green LCD, lum 0 black, 255 the panel colour
-   (as cybiko_sdl.c); "gray": plain greys, 0 black, 255 white */
+   (as cybiko_sdl.c); "gray": plain greys, 0 black, 255 white; "halloween":
+   black ink, purple and orange greys on a pumpkin-orange panel; "auto" (the
+   default): halloween from 24 Oct to 1 Nov, lcd the rest of the year.
+   Each palette is a list of [lum, r, g, b] stops, lum in between interpolated. */
+const PALETTES = {
+    lcd:       [[0, 0x18, 0x1c, 0x18], [255, 0xc6, 0xd0, 0xbc]],
+    gray:      [[0, 0x00, 0x00, 0x00], [255, 0xff, 0xff, 0xff]],
+    halloween: [[0, 0x12, 0x08, 0x16], [85, 0x4e, 0x22, 0x6e], [170, 0xc4, 0x52, 0x14], [255, 0xff, 0xa0, 0x30]],
+};
+function isHalloween(d = new Date()) {
+    const m = d.getMonth(), day = d.getDate();
+    return (m === 9 && day >= 24) || (m === 10 && day === 1);
+}
+function paletteName() {
+    const p = settings.palette;
+    if (p === "auto") return isHalloween() ? "halloween" : "lcd";
+    if (PALETTES[p]) return p;
+    log(`screen colours: unknown palette "${p}", showing lcd`);
+    return "lcd";
+}
 const PAL = new Uint32Array(256);
 const pixels = new Uint32Array(image.data.buffer);
-let lastLum = null;
+let lastLum = null, shownPalette = null;
 function setPalette() {
-    const gray = settings.palette === "gray";
-    for (let l = 0; l < 256; l++) {
-        const r = gray ? l : 0x18 + (l * (0xc6 - 0x18) / 255 | 0), g = gray ? l : 0x1c + (l * (0xd0 - 0x1c) / 255 | 0),
-              b = gray ? l : 0x18 + (l * (0xbc - 0x18) / 255 | 0);
+    const name = paletteName(), stops = PALETTES[name];
+    if (name !== shownPalette) { log(`screen colours: ${name}${settings.palette === "auto" ? " (auto)" : ""}`); shownPalette = name; }
+    for (let l = 0, k = 0; l < 256; l++) {
+        while (k < stops.length - 2 && l > stops[k + 1][0]) k++;
+        const [l0, r0, g0, b0] = stops[k], [l1, r1, g1, b1] = stops[k + 1], t = (l - l0) / (l1 - l0);
+        const r = r0 + (r1 - r0) * t | 0, g = g0 + (g1 - g0) * t | 0, b = b0 + (b1 - b0) * t | 0;
         PAL[l] = 0xff000000 | b << 16 | g << 8 | r;
     }
     if (lastLum) draw(lastLum);
