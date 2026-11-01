@@ -936,6 +936,7 @@ async function boot(apps, extra = {}) {
     putDone = [];
     apps = [...(apps || []), ...await softwareOffCard()];
     worker = new Worker("emu-worker.js" + VERSION);
+    suBusy = false;
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
     const card = await store.get(pk("card")) || [];
@@ -1004,6 +1005,7 @@ function restart(apps, extra) {
     w.postMessage({ t: "save" });
 }
 
+let suBusy = false;                 /* files or System Pack 57 going into a Classic (files.js asks first) */
 let putDone = [];
 function onWorker(e) {
     const m = e.data;
@@ -1064,6 +1066,7 @@ function onWorker(e) {
         break;
     case "su": {
         const busy = m.state === 1 || m.state === 2;
+        suBusy = busy;
         if (m.files) {
             if (busy) notice(`Copying files into the Classic's flash: ${m.message}`, 0);
             else if (m.state === 3) notice(`${m.message}. Apps show on the desktop once CyOS has looked again (or after a restart).`, 20000);

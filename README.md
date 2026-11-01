@@ -62,6 +62,21 @@ Settings also has:
   LCD the rest of the year.
 
   ![Halloween screen colours](docs/images/xtreme-desktop-halloween.png)
+- **Files** (under the keyboard, or Settings → File manager): a window for
+  each place the Cybiko keeps files. On the Xtreme: its internal memory (the
+  RAM disk) and the MP3 cartridge's card; on the Classic: its internal memory
+  (the DataFlash, where CyOS 1.2 keeps its own files too), the memory card's
+  flash and the MP3 player's card. Upload (installers `.cap` and `.csu` are
+  unpacked for the internal memory; folders for the cards), download or
+  delete single files, back up a whole place as a zip, or restore one from a
+  zip (adding to what is there, or "Empty it first"; not for the Classic's
+  internal memory, where CyOS lives). The Cybiko is saved and stopped while
+  the window is open and starts again when it closes: CyOS reads its disks
+  only at power-on. The disks are edited in their saved images in this
+  browser (`web/cyfs.js`: the block format of Dragonfruit's `cy_disk.c`, and
+  the Classic's 264-byte DataFlash pages with their CRC-32, read from
+  `flash_v1257.bin`); zips are made and read with the browser's own
+  `CompressionStream`, no library.
 - **Download backup / Restore backup**: the whole RAM disk of this tab's
   Cybiko as one file (`ramdisk.bin`), to keep or move to another browser.
 - **MP3 cartridge**: a card kept in the browser. When the cartridge is in (Settings, or files on the card) and the Cybiko lacks its software, the page installs `MP3.cap` from cybiko-roms by itself (a checkbox in Settings turns that off). Add MP3s, MXD clips or a
