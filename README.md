@@ -85,9 +85,12 @@ first screen too, while that model has no firmware yet). Each keeps its own
 firmware, files, settings and Cybiko ID; switching saves the one running
 and starts the other.
 
-**The Cybiko Classic** (the first Cybiko, CyOS 1.2.46) runs the dumps of
-MAME's `cybikov1` set: Start fetches `classic/cyrom112.bin` and
-`classic/flash_v1246.bin` from cybiko-roms, and "Use my own files instead"
+**The Cybiko Classic** (the first Cybiko) runs CyOS 1.2.57 by default:
+Start fetches MAME's `classic/cyrom112.bin` boot ROM and
+`classic/flash_v1257.bin` (System Pack 57 installed on MAME's 1.2.46 dump)
+from cybiko-roms. The CyOS choice there, or Settings, CyOS, "Put this CyOS on",
+takes MAME's own `classic/flash_v1246.bin` (CyOS 1.2.46) instead; that
+replaces the flash and its files. "Use my own files instead"
 takes them, `cybikov1.zip`, or a [ReBiko](https://github.com/RetroCodeRamen/rebiko)
 release zip (`roms/boot.bin`, `roms/flash.bin`). Its 512 KB DataFlash dump
 becomes a 1 MB one (the other half free space, as on Dragonfruit), and the
@@ -100,7 +103,8 @@ so adding files, the software list and those settings are hidden for it.
 **Classic: memory card and CyOS 1.2.57.** Settings, "Memory card in" (on by
 default) plugs in the Cybiko 1Mb Memory Card: 256 KB RAM and 1 MB flash, the
 flash kept in the browser. CyOS 1.2.46 does not see it; CyOS 1.2.57 does.
-**Install CyOS 1.2.57** (next to Settings) fetches Cybiko's own System Pack 57
+On a flash that still has 1.2.46, **Install CyOS 1.2.57** (next to
+Settings) keeps the files and fetches Cybiko's own System Pack 57
 updater, `classic/Cybiko-AutoUpdate.exe` from cybiko-roms, and installs it
 through CyOS's serial console, as Cybiko's AutoUpdate did (Dragonfruit's
 `cy_sysupdate.c`). It runs as fast as the computer can: about 6 minutes of

@@ -12,10 +12,13 @@
     <h2>Start your <span class="model-name">Cybiko</span></h2>
     <p class="xtreme-only">The emulator runs the Cybiko's own firmware: its boot ROM and CyOS 1.5.08. One click fetches both from
       <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this browser keeps them.</p>
-    <p class="classic-only">The emulator runs the first Cybiko's own firmware: its boot ROM and CyOS 1.2.46, the
-      dumps of MAME's <code>cybikov1</code> set, as <a href="https://github.com/RetroCodeRamen/rebiko">ReBiko</a> ships them.
-      One click fetches both from <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this
+    <p class="classic-only">The emulator runs the first Cybiko's own firmware: its boot ROM, from MAME's
+      <code>cybikov1</code> set as <a href="https://github.com/RetroCodeRamen/rebiko">ReBiko</a> ships it, and CyOS 1.2.57,
+      the last CyOS for it (Cybiko's System Pack 57, which knows the memory card), or the dump's CyOS 1.2.46.
+      One click fetches them from <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this
       browser keeps them.</p>
+    <p class="row classic-only"><label>CyOS <select id="quick-cyos">
+      <option value="1.2.57">1.2.57 (the newest)</option><option value="1.2.46">1.2.46 (MAME's dump)</option></select></label></p>
     <p class="row xtreme-only"><label><input id="quick-ru" type="checkbox"> Russian CyOS 1.5.08 (menus in Russian, Cyrillic keyboard)</label></p>
     <p class="row"><button id="quick-btn" type="button" class="primary">Start the Cybiko</button>
       <span id="quick-ok"></span></p>
@@ -112,6 +115,11 @@
       (<code>MP3.cap</code>) goes on the Cybiko, not the card: the page moves it there if you add it here.</p>
     </div>
     <div class="classic-only">
+    <p class="row"><label>CyOS <select id="set-cyos">
+      <option value="1.2.57">1.2.57 (System Pack 57)</option><option value="1.2.46">1.2.46 (MAME's dump)</option></select></label>
+      <button id="cyos-btn" type="button">Put this CyOS on</button></p>
+    <p class="note">Replaces the flash with a fresh CyOS: the files on it go (Download backup first). To keep them
+      and go from 1.2.46 to 1.2.57, use Install CyOS 1.2.57 instead.</p>
     <p class="row"><label><input id="set-mcard" type="checkbox"> Memory card in (256 KB RAM and 1 MB flash, the
       Cybiko 1Mb Memory Card)</label></p>
     <p class="note">CyOS 1.2.57 uses it (Install CyOS 1.2.57); CyOS 1.2.46 does not see it. What CyOS writes on it is

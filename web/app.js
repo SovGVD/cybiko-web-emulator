@@ -122,6 +122,7 @@ function fillSettings() {
     $("set-vsync").checked = settings.vsync;
     $("set-palette").value = settings.palette;
     $("set-mcard").checked = settings.mcard;
+    if (classic) store.get(pk("cyos")).then(v => { $("set-cyos").value = v || "1.2.46"; }).catch(() => {});
 }
 
 function readSettings() {
@@ -418,9 +419,13 @@ function checkSetup() {
 const DUMPS = {
     xtreme: { fetch: ["xtreme/cyrom150.bin", "xtreme/cyos_v1508.bin"], rom: ["cyrom150.bin"], flash: ["cyos_v1508.bin"],
               what: "the boot ROM and CyOS 1.5.08" },
-    classic: { fetch: ["classic/cyrom112.bin", "classic/flash_v1246.bin"], rom: ["cyrom112.bin", "boot.bin"],
-               flash: ["flash_v1246.bin", "flash.bin"], what: "the boot ROM and CyOS 1.2.46" },
+    classic: { fetch: ["classic/cyrom112.bin", "classic/flash_v1257.bin"], rom: ["cyrom112.bin", "boot.bin"],
+               flash: ["flash_v1257.bin", "flash_v1246.bin", "flash.bin"], what: "the boot ROM and CyOS 1.2.57" },
 };
+/* The Classic's CyOS versions in cybiko-roms: 1.2.57 (System Pack 57,
+ * installed once on 1.2.46 by the emulator; knows the memory card) and the
+ * 1.2.46 of MAME's dump */
+const CLASSIC_CYOS = { "1.2.57": "classic/flash_v1257.bin", "1.2.46": "classic/flash_v1246.bin" };
 /* A ROM set or a release, as a zip: take this model's boot ROM and flash out of it */
 async function unzip(data) {
     const out = {}, u16 = o => data[o] | data[o + 1] << 8, u32 = o => (u16(o) | u16(o + 2) << 16) >>> 0;
@@ -470,13 +475,16 @@ $("quick-btn").onclick = async () => {
     $("quick-btn").disabled = true;
     $("quick-ok").textContent = "fetching the firmware…";
     try {
-        const [rom, flash, upd] = await Promise.all([...d.fetch,
+        const cyos = classic ? $("quick-cyos").value : "";
+        const files = classic ? [d.fetch[0], CLASSIC_CYOS[cyos]] : d.fetch;
+        const [rom, flash, upd] = await Promise.all([...files,
             ...(ru ? ["cyos-updates/ccyphRU1.5.08r.boot"] : [])].map(fetchFile));
         if (rom.length !== 0x8000 || !flashOk(flash)) throw new Error("the files are not the right size");
         await store.set(pk("rom"), rom);
         await store.set(pk("flash"), flash);
         if (upd) await store.set(pk("boot"), upd);
-        log(`setup: ${d.what} fetched from ${SITE.filesPage}${upd ? ", with the Russian CyOS update" : ""}`);
+        if (classic) await store.set(pk("cyos"), cyos);
+        log(`setup: ${classic ? `the boot ROM and CyOS ${cyos}` : d.what} fetched from ${SITE.filesPage}${upd ? ", with the Russian CyOS update" : ""}`);
         $("quick-ok").textContent = "";
         $("setup").hidden = true;
         audioOn();
@@ -634,6 +642,30 @@ function download(name, data) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+/* Another CyOS for the Classic: its flash from cybiko-roms in place of this
+ * one (each tab's Cybiko starts from it again: their files go) */
+$("cyos-btn").onclick = async () => {
+    const v = $("set-cyos").value;
+    if (!confirm(`Put CyOS ${v} on the Cybiko Classic? Its flash is replaced: CyOS and every file on it, in every tab. ` +
+                 "Download backup first to keep them.")) return;
+    $("cyos-btn").disabled = true;
+    try {
+        const flash = await fetchFile(CLASSIC_CYOS[v]);
+        if (!flashOk(flash)) throw new Error("not a Classic flash image");
+        await stopWorker(true);
+        for (const k of await store.keys())
+            if (k === pk("flash") || k.startsWith(pk("flash") + "#")) await store.del(k);
+        await store.set(pk("flash"), flash);
+        await store.set(pk("cyos"), v);
+        log(`setup: CyOS ${v} put on the Classic`);
+        $("settings").hidden = true;
+        boot();
+    } catch (e) {
+        notice(`Could not fetch CyOS ${v}: ${e.message}`, 0);
+    }
+    $("cyos-btn").disabled = false;
+};
+
 /* System Pack 57: CyOS 1.2.57 for the Classic, from Cybiko's own updater
  * (cybiko-roms classic/Cybiko-AutoUpdate.exe), fetched once and kept */
 $("sp-btn").onclick = async () => {
@@ -962,7 +994,7 @@ function onWorker(e) {
         if (busy)
             notice(`Installing CyOS 1.2.57 (System Pack 57), step ${m.step} of ${m.steps}: ${m.message}. ` +
                    "It runs as fast as this computer can, about 6 minutes of Cybiko time; leave the keys alone.", 0);
-        else if (m.state === 3)
+        else if (m.state === 3 && (store.set(pk("cyos"), "1.2.57"), true))
             notice(m.already ? "This Cybiko already runs CyOS 1.2.57."
                 : `CyOS 1.2.57 is installed${m.retries ? ` (${m.retries} step(s) done again)` : ""}. ` +
                   "The memory card (Settings) shows in the File Manager as Card Flash.", 30000);
