@@ -187,6 +187,30 @@ function status() {
                   id: M ? (M._emu_unit_id() >>> 0).toString(16).padStart(8, "0") : "", radio: { ...radio } });
 }
 
+/* The Classic: whether CyOS 1.2.57 and the MP3 player's software are on
+ * (the page hides their install buttons). 1.2.57's boot file is in the
+ * flash; MP3.dl talks to the player soon after CyOS starts (CyOS itself
+ * only asks its version), so that is known from 30 s of Cybiko time. */
+const CYOS57 = Array.from("comp1.2.57r.boot", c => c.charCodeAt(0));
+function hasCyos57() {
+    const p = M._emu_flash(), n = M._emu_flash_size(), h = M.HEAPU8, c0 = CYOS57[0];
+    outer: for (let i = p; i < p + n - CYOS57.length; i++) {
+        if (h[i] !== c0) continue;
+        for (let j = 1; j < CYOS57.length; j++) if (h[i + j] !== CYOS57[j]) continue outer;
+        return true;
+    }
+    return false;
+}
+let classicShown = "", cyos57 = null, mp3Installed = false, installing = [];
+function classicStatus() {
+    if (!M || !classic || su) return;
+    if (cyos57 === null) cyos57 = hasCyos57();
+    const mp3 = !!M._emu_mp3c_present(), soft = !!M._emu_mp3c_software() || mp3Installed;
+    const st = { t: "classic", cyos57, mp3, mp3Soft: soft || emuMs < 30000 ? soft : false, known: soft || emuMs >= 30000 };
+    const key = JSON.stringify(st);
+    if (key !== classicShown) { classicShown = key; postMessage(st); }
+}
+
 /* ---- saving ---- */
 
 let diskSaving = false;
@@ -405,6 +429,7 @@ function install(files) {
         else log(`files: ${f.name} not copied (too many files at once, a name too long, or no memory)`);
     }
     if (!sent.length) return;
+    installing = sent;
     su = M._emu_install_start() === 0;
     suReport(true);
 }
@@ -419,7 +444,13 @@ function suReport(force) {
     const end = !su || state === SU_DONE || state === SU_FAILED;
     postMessage({ t: "su", files: !!M._emu_su_files(), state: su ? state : SU_FAILED, step: M._emu_su_step(), steps: M._emu_su_steps(), message,
                   already: !!M._emu_su_already(), retries: M._emu_su_retries() });
-    if (end && su) { su = false; save(); }
+    if (end && su) {
+        su = false;
+        cyos57 = null;                            /* look again */
+        if (state === SU_DONE && installing.some(n => n.toLowerCase() === "mp3.dl")) mp3Installed = true;
+        installing = [];
+        save();
+    }
 }
 
 function running() {
@@ -428,6 +459,7 @@ function running() {
     setInterval(tick, 10);
     setInterval(save, 3000);
     setInterval(status, 2000);
+    setInterval(classicStatus, 2000);
     postMessage({ t: "started" });
 }
 

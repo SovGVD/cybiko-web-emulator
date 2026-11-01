@@ -1057,6 +1057,11 @@ function onWorker(e) {
         break;
     }
     case "mp3": $("mp3-btns").hidden = !m.on; break;
+    case "classic":
+        /* the install buttons only while there is something to install */
+        $("sp-btn").hidden = m.cyos57;
+        $("mp3-soft-btn").hidden = !m.mp3 || !m.known || m.mp3Soft;
+        break;
     case "su": {
         const busy = m.state === 1 || m.state === 2;
         if (m.files) {
