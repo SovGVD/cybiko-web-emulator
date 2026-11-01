@@ -128,3 +128,21 @@ body.classic .xtreme-only, body:not(.classic) .classic-only { display: none !imp
 /* the Classic's MP3 player buttons */
 .mp3-btns:not([hidden]) { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; justify-content: center; }
 .mp3-btns button { min-width: 3.4em; font-family: ui-monospace, monospace; }
+
+/* the file manager */
+#fm {
+    width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+    background: var(--panel); color: var(--text); border: 1px solid #555; border-radius: 10px; padding: 12px 16px;
+}
+#fm::backdrop { background: rgba(0, 0, 0, 0.6); }
+#fm h2 { margin: 4px 0 8px; }
+.fm-scroll { max-height: 45vh; overflow: auto; border: 1px solid #444; border-radius: 6px; }
+.fm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.fm-table th { position: sticky; top: 0; background: var(--key); text-align: left; padding: 4px 6px; font-weight: 600; }
+.fm-table td { padding: 3px 6px; border-top: 1px solid #3a3d41; word-break: break-all; }
+.fm-table .num { text-align: right; white-space: nowrap; }
+.fm-table td:nth-child(3) { color: var(--muted); white-space: nowrap; }
+.fm-table .act { white-space: nowrap; text-align: right; }
+.fm-table .empty { color: var(--muted); text-align: center; padding: 12px; }
+.fm-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+@media (max-width: 480px) { .fm-table td:nth-child(3), .fm-table th:nth-child(3) { display: none; } }

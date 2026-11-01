@@ -49,6 +49,7 @@
     <div id="keyboard"></div>
     <p class="row add"><button id="settings-btn" type="button">Settings</button>
       <button id="add-btn" type="button">Add files to the Cybiko</button>
+      <button id="fm-btn" type="button" title="Upload, download and delete files; back up or restore as a zip">Files</button>
       <button id="sp-btn" type="button" class="classic-only" title="CyOS 1.2.57 knows the memory card">Install CyOS 1.2.57</button>
       <input id="add-file" type="file" multiple hidden></p>
     <p class="hint classic-only">PC keys: letters, digits and punctuation as on the PC, Enter, Esc, Space, arrows,
@@ -151,6 +152,7 @@
       <button id="set-save" type="button">Save and restart</button>
       <button id="set-close" type="button">Close</button>
       <button id="set-files" type="button" class="xtreme-only">Files on the Cybiko</button>
+      <button id="set-fm" type="button">File manager</button>
       <button id="backup-btn" type="button">Download backup</button>
       <button id="restore-btn" type="button">Restore backup</button>
       <input id="restore-file" type="file" hidden>
@@ -174,6 +176,27 @@
     (<a href="https://github.com/SovGVD/cybiko-web-emulator/blob/main/THIRD-PARTY-NOTICES.md">credits</a>)
   </footer>
 </main>
+<dialog id="fm">
+  <h2>Files of the <span class="model-name">Cybiko</span></h2>
+  <p class="row"><label>Storage <select id="fm-store"></select></label> <span id="fm-info" class="note"></span></p>
+  <p id="fm-note" class="note"></p>
+  <p class="note">The Cybiko is saved and stopped while this is open, and starts again when it closes.</p>
+  <div class="fm-scroll"><table class="fm-table"><thead><tr><th>Name</th><th class="num">Size</th><th>Date</th><th></th></tr></thead>
+    <tbody id="fm-list"></tbody></table></div>
+  <p class="row fm-btns">
+    <button id="fm-up" type="button">Upload files</button>
+    <button id="fm-dir" type="button">Upload a folder</button>
+    <input id="fm-file" type="file" multiple hidden>
+    <input id="fm-folder" type="file" webkitdirectory hidden>
+  </p>
+  <p class="row fm-btns">
+    <button id="fm-zip" type="button">Back up as zip</button>
+    <button id="fm-unzip" type="button">Restore from zip</button>
+    <label id="fm-wipe-label"><input id="fm-wipe" type="checkbox"> Empty it first</label>
+    <input id="fm-zipfile" type="file" accept=".zip,application/zip" hidden>
+  </p>
+  <p class="row"><button id="fm-close" type="button" class="primary">Close and start the Cybiko</button></p>
+</dialog>
 <div id="drop" hidden>Drop .app files to install them</div>
 <script src="config.js?v=dev"></script>
 <script src="idb.js?v=dev"></script>
@@ -181,6 +204,8 @@
 <script src="lib/bzip2.js?v=dev"></script>
 <script src="lib/cap.js?v=dev"></script>
 <script src="catalog.js?v=dev"></script>
+<script src="cyfs.js?v=dev"></script>
 <script src="app.js?v=dev"></script>
+<script src="files.js?v=dev"></script>
 </body>
 </html>
