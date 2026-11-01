@@ -732,8 +732,8 @@ for (const b of $("mp3-btns").querySelectorAll("button"))
     b.onclick = () => worker && worker.postMessage({ t: "mp3btn", b: +b.dataset.b });
 
 /* The player's software for the Classic: MP3.app (cybiko-roms
- * classic/MP3.app) and its libraries MP3.dl and mp3_control.dl, fetched
- * when cybiko-roms has them, else picked from the player's CD */
+ * classic/) and its libraries MP3.dl and mp3_control.dl (classic/ too);
+ * any that cannot be fetched are picked by hand */
 const MP3C_SOFTWARE = ["MP3.dl", "mp3_control.dl", "MP3.app"];
 $("mp3-soft-btn").onclick = async () => {
     if (!worker) return;
