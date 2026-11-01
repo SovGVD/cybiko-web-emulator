@@ -402,6 +402,8 @@ static void mp3c_log(void *user, const char *line) { (void)user; logf_("%s", lin
 /* The Classic's MP3 player instead of the memory card; call before emu_start */
 EMSCRIPTEN_KEEPALIVE void emu_mp3c_on(void) { mp3c_wanted = true; }
 EMSCRIPTEN_KEEPALIVE int emu_mp3c_present(void) { return mp3c != NULL; }
+/* MP3.dl has talked to it: the player's software is on the Cybiko */
+EMSCRIPTEN_KEEPALIVE int emu_mp3c_software(void) { return mp3c && mp3c->software; }
 /* One of its own buttons: 0 back, 1 play/pause, 2 forward, 3 stop, 4 volume
  * up, 5 volume down (CY_MP3C_BTN_...) */
 EMSCRIPTEN_KEEPALIVE void emu_mp3c_button(int b) { if (mp3c) cy_mp3c_button(mp3c, b); }

@@ -130,7 +130,8 @@ as on the real player. On the Cybiko it needs CyOS 1.2.57 and the player's
 software: **Install the MP3 player's software** (under the keyboard) fetches
 `classic/MP3.app`, `classic/MP3.dl` and `classic/mp3_control.dl` from
 cybiko-roms and copies the three into the flash (a file that cannot be
-fetched is asked for instead).
+fetched is asked for instead). The button, and **Install CyOS 1.2.57**, hide once what
+they install is on the Cybiko.
 MP3 on the desktop then lists the card and plays, pauses, skips, seeks, sets
 the volume, repeat and shuffle, and shows each song's ID3 details. The
 player's own firmware was never dumped, so it is emulated from what MP3.dl
