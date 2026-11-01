@@ -98,11 +98,16 @@ $("model-select").onchange = async () => {
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
                    disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true, vsync: true,
-                   palette: "lcd", mcard: true };
+                   palette: "lcd", mcard: true, classicSlot: "auto" };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
-    try { settings = { ...DEFAULTS, ...(await store.get(pk("settings")) || {}) }; }
+    try {
+        const saved = await store.get(pk("settings")) || {};
+        settings = { ...DEFAULTS, ...saved };
+        /* before the MP3 player, the slot was only the memory card, in or out */
+        if (!saved.classicSlot && saved.mcard === false) settings.classicSlot = "empty";
+    }
     catch (e) { log(`settings: could not read (${e}); using defaults`); }
     /* a local server (proxy/local.js) is its own proxy */
     if (!settings.proxy && /^(localhost|127\.|\[::1\])/.test(location.host)) settings.proxy = location.origin;
@@ -121,7 +126,7 @@ function fillSettings() {
     $("set-cart-soft").checked = settings.cartSoft;
     $("set-vsync").checked = settings.vsync;
     $("set-palette").value = settings.palette;
-    $("set-mcard").checked = settings.mcard;
+    $("set-slot").value = settings.classicSlot;
     if (classic) store.get(pk("cyos")).then(v => { $("set-cyos").value = v || "1.2.46"; }).catch(() => {});
 }
 
@@ -131,7 +136,7 @@ function readSettings() {
              disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
              cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked,
              vsync: $("set-vsync").checked, palette: $("set-palette").value,
-             mcard: $("set-mcard").checked };
+             mcard: settings.mcard, classicSlot: $("set-slot").value };
 }
 
 $("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
@@ -584,7 +589,12 @@ window.addEventListener("drop", e => {
 });
 /* the same through a file picker (phones have no drag and drop) */
 $("add-btn").onclick = () => $("add-file").click();
-$("add-file").onchange = () => { const list = Array.from($("add-file").files); $("add-file").value = ""; addFiles(list); };
+$("add-file").onchange = () => {
+    const list = [...mp3Fetched, ...Array.from($("add-file").files)];
+    $("add-file").value = "";
+    mp3Fetched = [];
+    addFiles(list);
+};
 
 /* An EZ Loader pack (.cap, .csu: the CD's installers, such as the MP3
  * cartridge software) holds the files to put on the Cybiko: unpack it, as
@@ -613,11 +623,6 @@ function unpack(name, data, quiet) {
 
 async function addFiles(files) {
     if (!worker) return;
-    if (classic) {
-        notice("The Classic keeps its files in its flash, and this emulator cannot put files there yet.");
-        log(`files: ${files.map(f => f.name).join(", ")} not copied: the Classic has no RAM disk`);
-        return;
-    }
     const apps = [];
     for (const f of files) {
         const data = f.data || new Uint8Array(await f.arrayBuffer());
@@ -626,7 +631,14 @@ async function addFiles(files) {
             apps.push(a);
         }
     }
-    if (apps.length) restart(apps);
+    if (!apps.length) return;
+    if (classic) {
+        /* into the flash through CyOS's console, while it runs */
+        notice(`Copying ${apps.map(a => a.name).join(", ")} into the Classic's flash…`, 0);
+        worker.postMessage({ t: "install", files: apps });
+        return;
+    }
+    restart(apps);
 }
 
 /* ---- backup: the RAM disk as ramdisk.bin (the board's and the desktop
@@ -688,6 +700,31 @@ $("sp-btn").onclick = async () => {
         $("sp-btn").disabled = false;
     }
 };
+/* The MP3 player's own buttons (on its side on the real one) */
+for (const b of $("mp3-btns").querySelectorAll("button"))
+    b.onclick = () => worker && worker.postMessage({ t: "mp3btn", b: +b.dataset.b });
+
+/* The player's software for the Classic: MP3.app (cybiko-roms
+ * classic/MP3.app) and its libraries MP3.dl and mp3_control.dl, fetched
+ * when cybiko-roms has them, else picked from the player's CD */
+const MP3C_SOFTWARE = ["MP3.dl", "mp3_control.dl", "MP3.app"];
+$("mp3-soft-btn").onclick = async () => {
+    if (!worker) return;
+    const got = [], missing = [];
+    for (const n of MP3C_SOFTWARE) {
+        try { got.push({ name: n, data: await fetchFile("classic/" + n) }); }
+        catch (e) { missing.push(n); log(`MP3 player: ${n} not fetched (${e.message})`); }
+    }
+    if (missing.length) {
+        mp3Fetched = got;
+        notice(`Pick ${missing.join(" and ")} (from the MP3 player's CD); ${got.map(f => f.name).join(", ") || "nothing"} came from ${SITE.filesPage} and goes in with them.`, 0);
+        $("add-file").click();
+        return;
+    }
+    addFiles(got);
+};
+let mp3Fetched = [];
+
 $("backup-btn").onclick = () => worker && worker.postMessage({ t: "getdisk" });
 $("restore-btn").onclick = () => $("restore-file").click();
 $("restore-file").onchange = async () => {
@@ -756,6 +793,7 @@ async function deleteFromCard(path) {
  * hand) does nothing there: it has to be on the Cybiko's disk. */
 const isSoftware = (name, data) => isPack(data) || /\.dl$/i.test(name) || /^mp3player\.app$/i.test(name);
 async function softwareOffCard() {
+    if (classic) return [];                  /* the player's card holds songs only; nothing to move */
     const card = await store.get(pk("card")) || [];
     const soft = card.filter(f => isSoftware(f.path.split("/").pop(), f.data));
     if (!soft.length) return [];
@@ -874,11 +912,14 @@ async function boot(apps, extra = {}) {
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
     const card = await store.get(pk("card")) || [];
+    /* the Classic's slot: the MP3 player (auto: when its card has files) or the memory card */
+    const cs = settings.classicSlot || "auto";
+    const mp3On = classic && (cs === "mp3" || (cs === "auto" && card.length > 0));
     const cartSoftware = !classic && settings.cartSoft && (settings.cart === "on" || (settings.cart !== "off" && card.length)) ? await mp3Software() : null;
     worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [], card, cartSoftware,
                          boot: slot === 1 && boot ? boot : null, slot, prefix: prefixOf(profile), model: profile.model,
                          diskSize: settings.disk << 20, id24, settings,
-                         mcardOn: classic && settings.mcard !== false, mcard: mcard || null,
+                         mp3On, mcardOn: classic && !mp3On && (cs === "auto" || cs === "card"), mcard: mcard || null,
                          sysupdate: classic && extra.sysupdate || null });
 }
 
@@ -988,8 +1029,15 @@ function onWorker(e) {
         $("status").textContent = $("status").title = `${MODELS[profile.model]} · ID ${m.id} · Cybiko ${slot} · room ${settings.room} · relay ${m.relay} · radio ${r.sent} out, ${r.heard} in · ${m.speed}%`;
         break;
     }
+    case "mp3": $("mp3-btns").hidden = !m.on; break;
     case "su": {
         const busy = m.state === 1 || m.state === 2;
+        if (m.files) {
+            if (busy) notice(`Copying files into the Classic's flash: ${m.message}`, 0);
+            else if (m.state === 3) notice(`${m.message}. Apps show on the desktop once CyOS has looked again (or after a restart).`, 20000);
+            else notice(`Copying files failed: ${m.message || "see the log"}.`, 0);
+            break;
+        }
         $("sp-btn").disabled = busy;
         if (busy)
             notice(`Installing CyOS 1.2.57 (System Pack 57), step ${m.step} of ${m.steps}: ${m.message}. ` +

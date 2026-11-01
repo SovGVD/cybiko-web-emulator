@@ -98,10 +98,15 @@ whole flash, CyOS's files with it, is saved in the browser as CyOS writes it;
 Download backup gives it as `flash_saved.bin`, the board's file. The
 keyboard is the Classic's own (digit keys, PC punctuation, no Menu), and the
 PC keys map one to one. The Classic has no RAM disk, MP3 cartridge or gate,
-so adding files, the software list and those settings are hidden for it.
+so the software list and those settings are hidden for it. **Add files to the
+Cybiko** (or dropping files on the page) copies them into its flash through
+CyOS's serial console while it runs, as Cybiko's PC software did
+(Dragonfruit's `cy_su_start_files`).
 
-**Classic: memory card and CyOS 1.2.57.** Settings, "Memory card in" (on by
-default) plugs in the Cybiko 1Mb Memory Card: 256 KB RAM and 1 MB flash, the
+**Classic: memory card and CyOS 1.2.57.** Settings → Slot picks what is in
+the Classic's slot: the memory card, the MP3 player, or nothing ("auto", the
+default: the MP3 player when its card has files, else the memory card). The
+memory card is the Cybiko 1Mb Memory Card: 256 KB RAM and 1 MB flash, the
 flash kept in the browser. CyOS 1.2.46 does not see it; CyOS 1.2.57 does.
 On a flash that still has 1.2.46, **Install CyOS 1.2.57** (next to
 Settings) keeps the files and fetches Cybiko's own System Pack 57
@@ -111,7 +116,20 @@ through CyOS's serial console, as Cybiko's AutoUpdate did (Dragonfruit's
 Cybiko time, a few seconds to a minute in the browser. The File Manager then
 shows the card as Card Flash. How it all works:
 [Dragonfruit's notes](https://github.com/SovGVD/Dragonfruit-JC4827W543-esp32/blob/main/docs/cybiko-classic-modules.md).
-The Classic's MP3 player is not emulated.
+
+**Classic: the MP3 player (CY65P10).** With the MP3 player in the slot, its
+SmartMedia card is the card in Settings (MP3s, kept in the browser,
+read-only for the player) and the player's six buttons (back, play/pause,
+forward, stop, volume) show above the keyboard; they work without any app,
+as on the real player. On the Cybiko it needs CyOS 1.2.57 and the player's
+software: **Install the MP3 player's software** (under the keyboard) fetches
+`classic/MP3.app` from cybiko-roms and asks for `MP3.dl` and
+`mp3_control.dl` from the player's CD, then copies the three into the flash.
+MP3 on the desktop then lists the card and plays, pauses, skips, seeks, sets
+the volume, repeat and shuffle, and shows each song's ID3 details. The
+player's own firmware was never dumped, so it is emulated from what MP3.dl
+and MP3.app send (Dragonfruit's `cy_mp3c.c`); its FM radio and voice recorder
+are not there.
 
 **Every tab is a Cybiko of its own.** The first tab is Cybiko 1, a second
 tab Cybiko 2, and so on, each with its own RAM disk and Cybiko ID (CyOS

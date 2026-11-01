@@ -17,7 +17,7 @@ let prefix = "";              /* the profile's keys in the store (app.js profile
 let classic = false;
 const slotKey = k => slot > 1 ? `${prefix}${k}#${slot}` : prefix + k;
 let updating = false;         /* a CyOS update is being installed */
-let su = false;               /* System Pack 57 is being installed on a Classic (emu_su_start) */
+let su = false;               /* System Pack 57 or files are being installed on a Classic (emu_su_start, emu_install_start) */
 let suShown = "";
 let lastLcd = 0;
 
@@ -256,8 +256,8 @@ function tick() {
     last = now;
     if (ms > 100) ms = 100;                    /* fell behind: let emulated time slip */
     if (su) {
-        /* installing System Pack 57: about 6 minutes of emulated time, so
-         * as fast as this computer goes, without sound */
+        /* installing System Pack 57 (about 6 minutes of emulated time) or
+         * files: as fast as this computer goes, without sound */
         do emuMs = M._emu_run(CLOCK / 100); while (performance.now() - now < 8);
         M._emu_audio();
         suReport();
@@ -298,7 +298,8 @@ async function start(msg) {
         printErr: line => log("wasm: " + line),
     });
     if (classic) M._emu_classic();
-    if (classic && msg.mcardOn) {
+    if (classic && msg.mp3On) M._emu_mp3c_on();   /* the MP3 player takes the slot */
+    else if (classic && msg.mcardOn) {
         const cp = M._emu_mcard();
         if (cp && msg.mcard && msg.mcard.length === M._emu_mcard_size()) M.HEAPU8.set(msg.mcard, cp);
         else if (cp && msg.mcard) log(`memory card: the saved card is ${msg.mcard.length} bytes, not ${M._emu_mcard_size()}; an empty card instead`);
@@ -331,16 +332,7 @@ async function start(msg) {
     }
     const home = M.stringToNewUTF8(settings.home || "");
     /* the MP3 cartridge's card: the page's files in /card (cy_vfat) */
-    let cardFiles = 0;
-    for (const f of msg.card || []) {
-        const path = "/card/" + f.path.replace(/^\/+/, "");
-        try {
-            M.FS.mkdirTree(path.slice(0, path.lastIndexOf("/")));
-            M.FS.writeFile(path, f.data);
-            cardFiles++;
-        } catch (e) { log(`card: ${f.path} not put on the card: ${e}`); }
-    }
-    if (!cardFiles) M.FS.mkdirTree("/card");
+    const cardFiles = writeCard(msg.card);
     /* auto: plugged in when the card has files or the cartridge's software
      * is on the Cybiko (it is sold with the cartridge) */
     const cart = settings.cart === "off" ? 0 : settings.cart === "on" || hasSoftware() ? 2 : 1;
@@ -359,21 +351,62 @@ async function start(msg) {
     }
 }
 
+/* The card's files from the page into /card: the Xtreme's MP3 cartridge
+ * reads them as a FAT card (cy_vfat), the Classic's MP3 player as its
+ * SmartMedia card (cy_mp3c). The number put there. */
+function writeCard(card) {
+    let n = 0;
+    for (const f of card || []) {
+        const path = "/card/" + f.path.replace(/^\/+/, "");
+        try {
+            M.FS.mkdirTree(path.slice(0, path.lastIndexOf("/")));
+            M.FS.writeFile(path, f.data);
+            n++;
+        } catch (e) { log(`card: ${f.path} not put on the card: ${e}`); }
+    }
+    if (!n) M.FS.mkdirTree("/card");
+    return n;
+}
+
 /* The Classic: only its flash (CyOS 1.2 keeps its files there); no RAM
- * disk, cartridge or gate, so files, apps and the card are left out. */
+ * disk, cartridge or gate. Files go into the flash through CyOS's console
+ * (install), as Cybiko's PC software did. */
 function startClassic(msg) {
     if (M._emu_classic_flash(msg.flash.length) < 0) { postMessage({ t: "badflash" }); return; }
-    if (msg.apps && msg.apps.length) log(`files: ${msg.apps.length} files not copied: the Classic has no RAM disk`);
+    if (msg.mp3On) writeCard(msg.card);
     if (!M._emu_start(msg.id24, 0, 0, 0)) {
         log("could not start the machine");
         return;
     }
     running();
+    postMessage({ t: "mp3", on: !!M._emu_mp3c_present() });
     if (msg.sysupdate) {
         M.HEAPU8.set(msg.sysupdate, M._emu_scratch(msg.sysupdate.length));
         su = M._emu_su_start(msg.sysupdate.length) === 0;
         suReport(true);
+        if (msg.apps && msg.apps.length) log(`files: ${msg.apps.map(a => a.name).join(", ")} not copied: CyOS 1.2.57 is being installed; add them again after`);
+    } else if (msg.apps && msg.apps.length) {
+        install(msg.apps);
     }
+}
+
+/* Files into the Classic's flash, sent through CyOS's console */
+function install(files) {
+    if (!M || !classic) return;
+    if (su) { log(`files: ${files.map(f => f.name).join(", ")} not copied: an install is going on; add them again after`); return; }
+    M._emu_install_clear();
+    const sent = [];
+    for (const f of files) {
+        const name = M.stringToNewUTF8(f.name);
+        M.HEAPU8.set(f.data, M._emu_scratch(f.data.length || 1));
+        const r = M._emu_install_add(name, f.data.length);
+        M._free(name);
+        if (r === 0) sent.push(f.name);
+        else log(`files: ${f.name} not copied (too many files at once, a name too long, or no memory)`);
+    }
+    if (!sent.length) return;
+    su = M._emu_install_start() === 0;
+    suReport(true);
 }
 
 /* System Pack 57's progress to the page; the end stops the fast running */
@@ -384,7 +417,7 @@ function suReport(force) {
     suShown = message;
     if (message) log(`update: ${M._emu_su_step()}/${M._emu_su_steps()} ${message}`);
     const end = !su || state === SU_DONE || state === SU_FAILED;
-    postMessage({ t: "su", state: su ? state : SU_FAILED, step: M._emu_su_step(), steps: M._emu_su_steps(), message,
+    postMessage({ t: "su", files: !!M._emu_su_files(), state: su ? state : SU_FAILED, step: M._emu_su_step(), steps: M._emu_su_steps(), message,
                   already: !!M._emu_su_already(), retries: M._emu_su_retries() });
     if (end && su) { su = false; save(); }
 }
@@ -434,6 +467,8 @@ onmessage = async e => {
     switch (m.t) {
     case "start": start(m); break;
     case "key": key(m.k, m.down); break;
+    case "mp3btn": if (M) M._emu_mp3c_button(m.b); break;
+    case "install": install(m.files); break;
     case "files": files(); break;
     case "getfile": {
         if (!M) break;
