@@ -98,7 +98,7 @@ $("model-select").onchange = async () => {
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
                    disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true, vsync: true,
-                   palette: "lcd" };
+                   palette: "lcd", mcard: true };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
@@ -121,6 +121,7 @@ function fillSettings() {
     $("set-cart-soft").checked = settings.cartSoft;
     $("set-vsync").checked = settings.vsync;
     $("set-palette").value = settings.palette;
+    $("set-mcard").checked = settings.mcard;
 }
 
 function readSettings() {
@@ -128,7 +129,8 @@ function readSettings() {
              online: $("set-online").checked, gate: $("set-gate").checked, home: $("set-home").value.trim(),
              disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
              cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked,
-             vsync: $("set-vsync").checked, palette: $("set-palette").value };
+             vsync: $("set-vsync").checked, palette: $("set-palette").value,
+             mcard: $("set-mcard").checked };
 }
 
 $("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
@@ -632,6 +634,28 @@ function download(name, data) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+/* System Pack 57: CyOS 1.2.57 for the Classic, from Cybiko's own updater
+ * (cybiko-roms classic/Cybiko-AutoUpdate.exe), fetched once and kept */
+$("sp-btn").onclick = async () => {
+    if (!worker) return;
+    if (!confirm("Install CyOS 1.2.57 (System Pack 57) on this Classic? CyOS and its apps are replaced; " +
+                 "files of your own stay. The Cybiko restarts and the install takes a few minutes.")) return;
+    $("sp-btn").disabled = true;
+    try {
+        let exe = await store.get("sp57");
+        if (!exe) {
+            notice("Fetching System Pack 57 from cybiko-roms…", 0);
+            exe = await fetchFile("classic/Cybiko-AutoUpdate.exe");
+            await store.set("sp57", exe);
+        }
+        notice("Restarting the Cybiko to install CyOS 1.2.57…", 0);
+        restart([], { sysupdate: exe });
+    } catch (e) {
+        notice(`Could not fetch System Pack 57: ${e.message}`, 0);
+        log(`update: ${e.message}`);
+        $("sp-btn").disabled = false;
+    }
+};
 $("backup-btn").onclick = () => worker && worker.postMessage({ t: "getdisk" });
 $("restore-btn").onclick = () => $("restore-file").click();
 $("restore-file").onchange = async () => {
@@ -792,10 +816,11 @@ function claimSlot() {
 const slotKey = k => slot > 1 ? `${pk(k)}#${slot}` : pk(k);
 
 let id24 = 0;
-async function boot(apps) {
+/* extra.sysupdate: Cybiko-AutoUpdate.exe, to install System Pack 57 on a Classic */
+async function boot(apps, extra = {}) {
     if (!slot) slot = await claimSlot();
-    const [rom, base, flash, disk, boot] = await Promise.all(
-        [pk("rom"), pk("flash"), slotKey("flash"), slotKey("disk"), pk("boot")].map(k => store.get(k)));
+    const [rom, base, flash, disk, boot, mcard] = await Promise.all(
+        [pk("rom"), pk("flash"), slotKey("flash"), slotKey("disk"), pk("boot"), slotKey("mcard")].map(k => store.get(k)));
     if (!rom || !base) {
         /* no firmware yet: the device list goes with the setup (Settings is not reachable) */
         $("setup").append($("devices"));
@@ -820,7 +845,9 @@ async function boot(apps) {
     const cartSoftware = !classic && settings.cartSoft && (settings.cart === "on" || (settings.cart !== "off" && card.length)) ? await mp3Software() : null;
     worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [], card, cartSoftware,
                          boot: slot === 1 && boot ? boot : null, slot, prefix: prefixOf(profile), model: profile.model,
-                         diskSize: settings.disk << 20, id24, settings });
+                         diskSize: settings.disk << 20, id24, settings,
+                         mcardOn: classic && settings.mcard !== false, mcard: mcard || null,
+                         sysupdate: classic && extra.sysupdate || null });
 }
 
 /* The MP3 cartridge's software (MP3.cap from its CD, in cybiko-roms),
@@ -863,13 +890,13 @@ function stopWorker(drop) {
     });
 }
 
-function restart(apps) {
+function restart(apps, extra) {
     const w = worker;
     worker = null;
     $("status").textContent = "restarting";
     if (apps && apps.length)
         notice(`Copying ${apps.map(a => a.name).join(", ")} to the Cybiko: it restarts to see them (CyOS reads its disk at power-on).`, 0);
-    const go = () => { w.terminate(); boot(apps); };
+    const go = () => { w.terminate(); boot(apps, extra); };
     const timer = setTimeout(() => { log("restart: the worker did not answer; restarting without the last save"); go(); }, 3000);
     w.onmessage = e => {
         if (e.data.t === "saved") { clearTimeout(timer); go(); } else onWorker(e);
@@ -927,6 +954,21 @@ function onWorker(e) {
     case "status": {
         const r = m.radio;
         $("status").textContent = $("status").title = `${MODELS[profile.model]} · ID ${m.id} · Cybiko ${slot} · room ${settings.room} · relay ${m.relay} · radio ${r.sent} out, ${r.heard} in · ${m.speed}%`;
+        break;
+    }
+    case "su": {
+        const busy = m.state === 1 || m.state === 2;
+        $("sp-btn").disabled = busy;
+        if (busy)
+            notice(`Installing CyOS 1.2.57 (System Pack 57), step ${m.step} of ${m.steps}: ${m.message}. ` +
+                   "It runs as fast as this computer can, about 6 minutes of Cybiko time; leave the keys alone.", 0);
+        else if (m.state === 3)
+            notice(m.already ? "This Cybiko already runs CyOS 1.2.57."
+                : `CyOS 1.2.57 is installed${m.retries ? ` (${m.retries} step(s) done again)` : ""}. ` +
+                  "The memory card (Settings) shows in the File Manager as Card Flash.", 30000);
+        else
+            notice(`Installing CyOS 1.2.57 failed: ${m.message || "see the log"}. The Cybiko keeps what it had; ` +
+                   "Download backup first if you want to try again from a known state.", 0);
         break;
     }
     case "saved": break;

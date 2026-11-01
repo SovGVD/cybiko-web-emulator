@@ -64,7 +64,9 @@ Xtreme emulator for the LilyGO T-Deck and the desktop. ReBiko worked out the
 Classic's memory map, the AT45 DataFlash on SCI1, the radio co-processor's
 Classic framing, the battery values CyOS 1.2.46 wants, the empty-block format
 of the flash, the idea of emulating a 1 MB AT45DB081 for more room, and where
-CyOS 1.2.46 keeps the Cybiko ID in RAM. Dragonfruit's code is written
+CyOS 1.2.46 keeps the Cybiko ID in RAM, and CyOS's serial console protocol
+and the order of a System Pack 57 install (its `tools/rebiko_cyos_update.py`,
+followed by Dragonfruit's `cy_con.c` and `cy_sysupdate.c`). Dragonfruit's code is written
 separately, but those details come from ReBiko, under the MIT license:
 
 ```text

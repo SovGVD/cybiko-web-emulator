@@ -17,6 +17,8 @@ let prefix = "";              /* the profile's keys in the store (app.js profile
 let classic = false;
 const slotKey = k => slot > 1 ? `${prefix}${k}#${slot}` : prefix + k;
 let updating = false;         /* a CyOS update is being installed */
+let su = false;               /* System Pack 57 is being installed on a Classic (emu_su_start) */
+let suShown = "";
 let lastLcd = 0;
 
 function log(line) { postMessage({ t: "log", line }); }
@@ -220,6 +222,11 @@ async function save() {
         } catch (e) { log(`card: CyOS's changes not saved: ${e}`); }
         cardSaving = false;
     }
+    const c = classic ? M._emu_mcard_to_save() : 0;
+    if (c) {
+        try { await store.set(slotKey("mcard"), M.HEAPU8.slice(c, c + M._emu_mcard_size())); }
+        catch (e) { log(`save: memory card not saved: ${e}`); }
+    }
     const p = M._emu_flash_to_save(updating ? 1 : 0);
     if (p) {
         const f = M.HEAPU8.slice(p, p + M._emu_flash_size());
@@ -248,7 +255,15 @@ function tick() {
     let ms = now - last;
     last = now;
     if (ms > 100) ms = 100;                    /* fell behind: let emulated time slip */
-    emuMs = M._emu_run(Math.round(ms * CLOCK / 1000));
+    if (su) {
+        /* installing System Pack 57: about 6 minutes of emulated time, so
+         * as fast as this computer goes, without sound */
+        do emuMs = M._emu_run(CLOCK / 100); while (performance.now() - now < 8);
+        M._emu_audio();
+        suReport();
+    } else {
+        emuMs = M._emu_run(Math.round(ms * CLOCK / 1000));
+    }
     if (keyUps.length) keysDue();
     sound();
     const led = M._emu_led();
@@ -283,6 +298,11 @@ async function start(msg) {
         printErr: line => log("wasm: " + line),
     });
     if (classic) M._emu_classic();
+    if (classic && msg.mcardOn) {
+        const cp = M._emu_mcard();
+        if (cp && msg.mcard && msg.mcard.length === M._emu_mcard_size()) M.HEAPU8.set(msg.mcard, cp);
+        else if (cp && msg.mcard) log(`memory card: the saved card is ${msg.mcard.length} bytes, not ${M._emu_mcard_size()}; an empty card instead`);
+    }
     CLOCK = M._emu_clock_hz();
     M.HEAPU8.set(msg.rom.subarray(0, 0x8000), M._emu_rom());
     M.HEAPU8.set(msg.flash.subarray(0, M._emu_flash_size()), M._emu_flash());
@@ -349,6 +369,24 @@ function startClassic(msg) {
         return;
     }
     running();
+    if (msg.sysupdate) {
+        M.HEAPU8.set(msg.sysupdate, M._emu_scratch(msg.sysupdate.length));
+        su = M._emu_su_start(msg.sysupdate.length) === 0;
+        suReport(true);
+    }
+}
+
+/* System Pack 57's progress to the page; the end stops the fast running */
+const SU_DONE = 3, SU_FAILED = 4;
+function suReport(force) {
+    const state = M._emu_su_state(), message = M.UTF8ToString(M._emu_su_message());
+    if (!force && message === suShown && state !== SU_DONE && state !== SU_FAILED) return;
+    suShown = message;
+    if (message) log(`update: ${M._emu_su_step()}/${M._emu_su_steps()} ${message}`);
+    const end = !su || state === SU_DONE || state === SU_FAILED;
+    postMessage({ t: "su", state: su ? state : SU_FAILED, step: M._emu_su_step(), steps: M._emu_su_steps(), message,
+                  already: !!M._emu_su_already(), retries: M._emu_su_retries() });
+    if (end && su) { su = false; save(); }
 }
 
 function running() {

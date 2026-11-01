@@ -97,6 +97,18 @@ keyboard is the Classic's own (digit keys, PC punctuation, no Menu), and the
 PC keys map one to one. The Classic has no RAM disk, MP3 cartridge or gate,
 so adding files, the software list and those settings are hidden for it.
 
+**Classic: memory card and CyOS 1.2.57.** Settings, "Memory card in" (on by
+default) plugs in the Cybiko 1Mb Memory Card: 256 KB RAM and 1 MB flash, the
+flash kept in the browser. CyOS 1.2.46 does not see it; CyOS 1.2.57 does.
+**Install CyOS 1.2.57** (next to Settings) fetches Cybiko's own System Pack 57
+updater, `classic/Cybiko-AutoUpdate.exe` from cybiko-roms, and installs it
+through CyOS's serial console, as Cybiko's AutoUpdate did (Dragonfruit's
+`cy_sysupdate.c`). It runs as fast as the computer can: about 6 minutes of
+Cybiko time, a few seconds to a minute in the browser. The File Manager then
+shows the card as Card Flash. How it all works:
+[Dragonfruit's notes](https://github.com/SovGVD/Dragonfruit-JC4827W543-esp32/blob/main/docs/cybiko-classic-modules.md).
+The Classic's MP3 player is not emulated.
+
 **Every tab is a Cybiko of its own.** The first tab is Cybiko 1, a second
 tab Cybiko 2, and so on, each with its own RAM disk and Cybiko ID (CyOS
 ignores packets from its own ID, so two tabs sharing one could not chat).

@@ -44,10 +44,13 @@
     <div id="keyboard"></div>
     <p class="row add"><button id="settings-btn" type="button">Settings</button>
       <button id="add-btn" type="button" class="xtreme-only">Add files to the Cybiko</button>
+      <button id="sp-btn" type="button" class="classic-only" title="CyOS 1.2.57 knows the memory card">Install CyOS 1.2.57</button>
       <input id="add-file" type="file" multiple hidden></p>
     <p class="hint classic-only">PC keys: letters, digits and punctuation as on the PC, Enter, Esc, Space, arrows,
       Tab, Backspace, Delete = Del, Shift, Ctrl = Fn, F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins,
-      F12 = On/Off. The Classic has no RAM disk or cartridge: CyOS 1.2 keeps its files in its flash.</p>
+      F12 = On/Off. The Classic has no RAM disk or cartridge: CyOS 1.2 keeps its files in its flash. The memory
+      card (Settings) needs CyOS 1.2.57: <b>Install CyOS 1.2.57</b> puts it on from Cybiko's System Pack 57, as
+      Cybiko's AutoUpdate did; the File Manager then shows the card as Card Flash.</p>
     <p class="hint xtreme-only">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
       F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins, F11 = Menu, F12 = On/Off,
       [ ] = ( ), / = !. Drop <code>.app</code> or other files on the page (or use Add files) to put them on the Cybiko; it restarts to take them.</p>
@@ -107,6 +110,12 @@
       the real card. Kept in this browser; the Cybiko sees them after a restart. What the Cybiko does on the card
       (its File Manager's Delete, files it writes) is kept too. The cartridge's software
       (<code>MP3.cap</code>) goes on the Cybiko, not the card: the page moves it there if you add it here.</p>
+    </div>
+    <div class="classic-only">
+    <p class="row"><label><input id="set-mcard" type="checkbox"> Memory card in (256 KB RAM and 1 MB flash, the
+      Cybiko 1Mb Memory Card)</label></p>
+    <p class="note">CyOS 1.2.57 uses it (Install CyOS 1.2.57); CyOS 1.2.46 does not see it. What CyOS writes on it is
+      kept in this browser.</p>
     </div>
     <p class="row"><label>Volume <input id="set-volume" type="range" min="0" max="100"></label></p>
     <p class="row"><label><input id="set-vsync" type="checkbox"> Whole frames only: show the screen once the

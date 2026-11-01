@@ -13,7 +13,11 @@
  * so every tab has its own internet and nobody sees anyone else's gate.
  *
  * The Classic (emu_classic before the buffers) has no RAM disk, cartridge
- * or gate: CyOS 1.2 keeps its files in the DataFlash, and has no WAP. */
+ * or gate: CyOS 1.2 keeps its files in the DataFlash, and has no WAP. It can
+ * have the memory card (emu_mcard: 256 KB RAM and a 1 MB DataFlash, which
+ * CyOS 1.2.57 uses), and System Pack 57 can be installed on it from
+ * Cybiko-AutoUpdate.exe (emu_su_start), through CyOS's console as Cybiko's
+ * AutoUpdate did (cy_sysupdate.h). */
 #include <emscripten.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -25,6 +29,7 @@
 #include "net_web.h"
 #include "cy_mp3.h"
 #include "cy_vfat.h"
+#include "cy_sysupdate.h"
 #include <math.h>
 
 EM_JS(void, js_log, (const char *line), { Module.onLog(UTF8ToString(line)); });
@@ -45,6 +50,9 @@ static bool started;
 static bool classic;                /* a Cybiko Classic, not an Xtreme */
 static uint8_t lum[CY_LCD_W * CY_LCD_H];
 static uint32_t rf_full;            /* packets the radio queue had no room for */
+static uint8_t *mcard;              /* the Classic's memory card flash (CY_AT45_SIZE), NULL: no card */
+static cy_su_t *su;                 /* a System Pack install going on */
+static uint8_t *su_exe;
 
 static void logf_(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 static void logf_(const char *fmt, ...)
@@ -58,6 +66,20 @@ static void logf_(const char *fmt, ...)
 }
 
 /* ---- buffers the page fills before emu_start ---- */
+
+/* The Classic's memory card: its flash, CY_AT45_SIZE bytes, for the page to
+ * fill with a saved card before emu_start; fresh ones are empty (formatted).
+ * Not calling this leaves the card out. */
+EMSCRIPTEN_KEEPALIVE uint8_t *emu_mcard(void)
+{
+    if (!mcard && classic && !started) {
+        mcard = malloc(CY_AT45_SIZE);
+        if (mcard) cybiko_at45_format_free(mcard, 0);
+        else logf_("memory card: no memory for its flash; left out");
+    }
+    return mcard;
+}
+EMSCRIPTEN_KEEPALIVE uint32_t emu_mcard_size(void) { return CY_AT45_SIZE; }
 
 /* Make this a Cybiko Classic: call first, before emu_flash. */
 EMSCRIPTEN_KEEPALIVE void emu_classic(void) { if (!flash) classic = true; }
@@ -200,6 +222,7 @@ static void on_tx(void *user, int port, uint8_t b)
 {
     (void)user;
     if (port != (classic ? 2 : 1)) return;  /* the console: the Xtreme's SCI1, the Classic's SCI2 */
+    if (su) cy_su_rx(su, b);
     if (b == '\n' || con_len == sizeof con - 1) {
         con[con_len] = 0;
         if (con_len) logf_("cyos: %s", con);
@@ -376,6 +399,15 @@ static int start_classic(uint32_t id24)
     ram = calloc(1, CY_CLASSIC_RAM_SIZE);
     if (!ram) return 0;
     cybiko_init_classic(&m, &host, rom, flash, ram);
+    if (mcard) {
+        uint8_t *cram = calloc(1, CY_CARD_RAM_SIZE);
+        if (cram) {
+            cybiko_classic_card(&m, mcard, cram);
+            logf_("memory card in: 256 KB RAM, 1 MB flash (CyOS 1.2.57 uses it, 1.2.46 does not)");
+        } else {
+            logf_("memory card: no memory for its RAM; left out");
+        }
+    }
     if (id24) cybiko_set_unit_id(&m, id24 & 0xffffffu);
     if (id24) logf_("Cybiko Classic, ID %08x", (unsigned)cybiko_unit_id(&m));
     else logf_("Cybiko Classic, the dump's own ID");
@@ -457,6 +489,7 @@ EMSCRIPTEN_KEEPALIVE double emu_run(int32_t states)
         if (did <= 0) did = 1;
         states -= did;
         if (gate) cy_gate_poll(gate, (uint32_t)(m.cpu.cycles / chunk));
+        if (su && (su->state == CY_SU_WAITING || su->state == CY_SU_RUNNING)) cy_su_poll(su, 1);
         make_sound();
         lcd_watch();
     }
@@ -540,6 +573,44 @@ EMSCRIPTEN_KEEPALIVE uint8_t *emu_flash_to_save(int updating)
     cybiko_flash_original(&m, copy);
     return copy;
 }
+
+/* The memory card's flash to save (emu_mcard_size bytes), or NULL when CyOS
+ * has written nothing to it since the last call. */
+EMSCRIPTEN_KEEPALIVE uint8_t *emu_mcard_to_save(void)
+{
+    static uint32_t bits[CY_AT45_PAGES / 32];
+    if (!started || !mcard || !cybiko_card_take_dirty(&m, bits)) return NULL;
+    uint8_t *copy = emu_scratch(CY_AT45_SIZE);
+    if (copy) memcpy(copy, mcard, CY_AT45_SIZE);
+    else logf_("save: no memory for a copy of the memory card; not saved");
+    return copy;
+}
+
+/* ---- System Pack 57 (CyOS 1.2.57) on a Classic ---- */
+
+/* Start installing from Cybiko-AutoUpdate.exe, len bytes in emu_scratch,
+ * after emu_start. 0, or -1 (emu_su_message says why). */
+EMSCRIPTEN_KEEPALIVE int emu_su_start(uint32_t len)
+{
+    if (!started || !classic || su) return -1;
+    su_exe = malloc(len);
+    su = calloc(1, sizeof *su);
+    if (!su_exe || !su) { logf_("update: no memory"); free(su_exe); free(su); su = NULL; su_exe = NULL; return -1; }
+    memcpy(su_exe, emu_scratch(0), len);
+    if (!cy_su_start(su, &m, su_exe, len)) {
+        logf_("update: %s", su->message);
+        return -1;
+    }
+    logf_("update: %d files of System Pack 57", su->nfiles);
+    return 0;
+}
+/* CY_SU_* (0: none), *done and *total steps */
+EMSCRIPTEN_KEEPALIVE int emu_su_state(void) { return su ? (int)su->state : 0; }
+EMSCRIPTEN_KEEPALIVE int emu_su_step(void) { int t; return su ? cy_su_progress(su, &t) : 0; }
+EMSCRIPTEN_KEEPALIVE int emu_su_steps(void) { return su ? su->nsteps : 0; }
+EMSCRIPTEN_KEEPALIVE int emu_su_already(void) { return su && su->already; }
+EMSCRIPTEN_KEEPALIVE int emu_su_retries(void) { return su ? su->retries : 0; }
+EMSCRIPTEN_KEEPALIVE const char *emu_su_message(void) { return su ? su->message : ""; }
 
 /* What the model met but does not cover, for the log panel. */
 EMSCRIPTEN_KEEPALIVE const char *emu_stats(void)
