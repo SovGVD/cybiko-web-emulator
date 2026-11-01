@@ -12,10 +12,13 @@
     <h2>Start your <span class="model-name">Cybiko</span></h2>
     <p class="xtreme-only">The emulator runs the Cybiko's own firmware: its boot ROM and CyOS 1.5.08. One click fetches both from
       <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this browser keeps them.</p>
-    <p class="classic-only">The emulator runs the first Cybiko's own firmware: its boot ROM and CyOS 1.2.46, the
-      dumps of MAME's <code>cybikov1</code> set, as <a href="https://github.com/RetroCodeRamen/rebiko">ReBiko</a> ships them.
-      One click fetches both from <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this
+    <p class="classic-only">The emulator runs the first Cybiko's own firmware: its boot ROM, from MAME's
+      <code>cybikov1</code> set as <a href="https://github.com/RetroCodeRamen/rebiko">ReBiko</a> ships it, and CyOS 1.2.57,
+      the last CyOS for it (Cybiko's System Pack 57, which knows the memory card), or the dump's CyOS 1.2.46.
+      One click fetches them from <a href="https://github.com/SovGVD/cybiko-roms">cybiko-roms</a> on GitHub, and this
       browser keeps them.</p>
+    <p class="row classic-only"><label>CyOS <select id="quick-cyos">
+      <option value="1.2.57">1.2.57 (the newest)</option><option value="1.2.46">1.2.46 (MAME's dump)</option></select></label></p>
     <p class="row xtreme-only"><label><input id="quick-ru" type="checkbox"> Russian CyOS 1.5.08 (menus in Russian, Cyrillic keyboard)</label></p>
     <p class="row"><button id="quick-btn" type="button" class="primary">Start the Cybiko</button>
       <span id="quick-ok"></span></p>
@@ -41,13 +44,21 @@
   <section id="machine" hidden>
     <p id="notice" class="notice" hidden></p>
     <div id="screen-wrap"><div id="screen-box"><span id="led" title="Status LED: red while the radio sends, green while it hears another Cybiko"></span><span id="status" class="status" title="This Cybiko's ID (as other Cybikos see it), tab slot, radio room, relay, radio packets and speed">not started</span><canvas id="screen" width="160" height="100"></canvas></div></div>
+    <p id="mp3-btns" class="row mp3-btns classic-only" hidden title="The MP3 player's own buttons">MP3 player:
+      <button type="button" data-b="0" title="Back">|&lt;&lt;</button><button type="button" data-b="1" title="Play / pause">&gt;||</button><button type="button" data-b="2" title="Forward">&gt;&gt;|</button><button type="button" data-b="3" title="Stop">Stop</button><button type="button" data-b="5" title="Volume down">Vol &minus;</button><button type="button" data-b="4" title="Volume up">Vol +</button></p>
     <div id="keyboard"></div>
     <p class="row add"><button id="settings-btn" type="button">Settings</button>
-      <button id="add-btn" type="button" class="xtreme-only">Add files to the Cybiko</button>
+      <button id="add-btn" type="button">Add files to the Cybiko</button>
+      <button id="sp-btn" type="button" class="classic-only" title="CyOS 1.2.57 knows the memory card">Install CyOS 1.2.57</button>
       <input id="add-file" type="file" multiple hidden></p>
     <p class="hint classic-only">PC keys: letters, digits and punctuation as on the PC, Enter, Esc, Space, arrows,
       Tab, Backspace, Delete = Del, Shift, Ctrl = Fn, F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins,
-      F12 = On/Off. The Classic has no RAM disk or cartridge: CyOS 1.2 keeps its files in its flash.</p>
+      F12 = On/Off. The Classic has no RAM disk or cartridge: CyOS 1.2 keeps its files in its flash, and Add files
+      (or dropping files on the page) copies them there through CyOS's console, as Cybiko's PC software did. The memory
+      card (Settings) needs CyOS 1.2.57: <b>Install CyOS 1.2.57</b> puts it on from Cybiko's System Pack 57, as
+      Cybiko's AutoUpdate did; the File Manager then shows the card as Card Flash. The MP3 player (Settings: Slot)
+      needs CyOS 1.2.57 and its software, <code>MP3.app</code>, <code>MP3.dl</code> and <code>mp3_control.dl</code>:
+      <button id="mp3-soft-btn" type="button" class="small">Install the MP3 player's software</button></p>
     <p class="hint xtreme-only">PC keys: letters, Enter, Esc, Space, arrows, Tab, Backspace = Del, Shift, Ctrl = Fn,
       F1-F7, F8 or Home = Select, F9 = Help, F10 or Insert = Ins, F11 = Menu, F12 = On/Off,
       [ ] = ( ), / = !. Drop <code>.app</code> or other files on the page (or use Add files) to put them on the Cybiko; it restarts to take them.</p>
@@ -96,6 +107,11 @@
       <option value="off">Out</option></select></label></p>
     <p class="row"><label><input id="set-cart-soft" type="checkbox"> Install the cartridge's software (MP3 Player)
       when the cartridge is in and the Cybiko does not have it</label></p>
+    <p class="note">The MP3 cartridge's card. MP3s and MXD clips (<code>.app</code> files made by the converters), as you would put them on
+      the real card. Kept in this browser; the Cybiko sees them after a restart. What the Cybiko does on the card
+      (its File Manager's Delete, files it writes) is kept too. The cartridge's software
+      (<code>MP3.cap</code>) goes on the Cybiko, not the card: the page moves it there if you add it here.</p>
+    </div>
     <p class="row">Card: <span id="card-info"></span>
       <button id="card-add" type="button">Add files</button>
       <button id="card-folder" type="button">Add a folder</button>
@@ -103,10 +119,22 @@
       <input id="card-file" type="file" multiple hidden>
       <input id="card-dir" type="file" webkitdirectory hidden></p>
     <ul id="card-list" class="files"></ul>
-    <p class="note">MP3s and MXD clips (<code>.app</code> files made by the converters), as you would put them on
-      the real card. Kept in this browser; the Cybiko sees them after a restart. What the Cybiko does on the card
-      (its File Manager's Delete, files it writes) is kept too. The cartridge's software
-      (<code>MP3.cap</code>) goes on the Cybiko, not the card: the page moves it there if you add it here.</p>
+    <div class="classic-only">
+    <p class="row"><label>CyOS <select id="set-cyos">
+      <option value="1.2.57">1.2.57 (System Pack 57)</option><option value="1.2.46">1.2.46 (MAME's dump)</option></select></label>
+      <button id="cyos-btn" type="button">Put this CyOS on</button></p>
+    <p class="note">Replaces the flash with a fresh CyOS: the files on it go (Download backup first). To keep them
+      and go from 1.2.46 to 1.2.57, use Install CyOS 1.2.57 instead.</p>
+    <p class="row"><label>Slot <select id="set-slot">
+      <option value="auto">MP3 player when the card has files, else the memory card</option>
+      <option value="card">Memory card</option><option value="mp3">MP3 player</option>
+      <option value="empty">Empty</option></select></label></p>
+    <p class="note">The memory card: 256 KB RAM and 1 MB flash (the Cybiko 1Mb Memory Card). CyOS 1.2.57 uses it
+      (Install CyOS 1.2.57); CyOS 1.2.46 does not see it. What CyOS writes on it is kept in this browser.</p>
+    <p class="note">The MP3 player (CY65P10): its SmartMedia card is the card above, MP3s only, read-only. It needs
+      CyOS 1.2.57 and the player's software (the button under the keyboard); then MP3 on the desktop plays the
+      card, and the player's own buttons show above the keyboard. Emulated from what Cybiko's software does: the
+      player's firmware was never dumped, and its FM radio and voice recorder are not there.</p>
     </div>
     <p class="row"><label>Volume <input id="set-volume" type="range" min="0" max="100"></label></p>
     <p class="row"><label><input id="set-vsync" type="checkbox"> Whole frames only: show the screen once the

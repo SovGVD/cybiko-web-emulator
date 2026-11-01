@@ -98,11 +98,16 @@ $("model-select").onchange = async () => {
 
 const DEFAULTS = { proxy: SITE.proxy, room: SITE.room, online: true, gate: true, home: "",
                    disk: 4, volume: 60, zoom: 0, cart: "auto", cartSoft: true, vsync: true,
-                   palette: "auto", v: 2 };
+                   palette: "auto", v: 2, mcard: true, classicSlot: "auto" };
 let settings = { ...DEFAULTS };
 
 async function loadSettings() {
-    try { settings = { ...DEFAULTS, ...(await store.get(pk("settings")) || {}) }; }
+    try {
+        const saved = await store.get(pk("settings")) || {};
+        settings = { ...DEFAULTS, ...saved };
+        /* before the MP3 player, the slot was only the memory card, in or out */
+        if (!saved.classicSlot && saved.mcard === false) settings.classicSlot = "empty";
+    }
     catch (e) { log(`settings: could not read (${e}); using defaults`); }
     /* settings saved before v2 hold "lcd" because it was the only default, not
        because it was picked: they get the new seasonal default */
@@ -127,6 +132,8 @@ function fillSettings() {
     $("set-cart-soft").checked = settings.cartSoft;
     $("set-vsync").checked = settings.vsync;
     $("set-palette").value = settings.palette;
+    $("set-slot").value = settings.classicSlot;
+    if (classic) store.get(pk("cyos")).then(v => { $("set-cyos").value = v || "1.2.46"; }).catch(() => {});
 }
 
 function readSettings() {
@@ -134,7 +141,8 @@ function readSettings() {
              online: $("set-online").checked, gate: $("set-gate").checked, home: $("set-home").value.trim(),
              disk: +$("set-disk").value, volume: +$("set-volume").value, zoom: +$("set-zoom").value,
              cart: $("set-cart").value, cartSoft: $("set-cart-soft").checked,
-             vsync: $("set-vsync").checked, palette: $("set-palette").value, v: 2 };
+             vsync: $("set-vsync").checked, palette: $("set-palette").value, v: 2,
+             mcard: settings.mcard, classicSlot: $("set-slot").value };
 }
 
 $("settings-btn").onclick = () => { fillSettings(); showCard(); $("settings").hidden = !$("settings").hidden; };
@@ -443,9 +451,13 @@ function checkSetup() {
 const DUMPS = {
     xtreme: { fetch: ["xtreme/cyrom150.bin", "xtreme/cyos_v1508.bin"], rom: ["cyrom150.bin"], flash: ["cyos_v1508.bin"],
               what: "the boot ROM and CyOS 1.5.08" },
-    classic: { fetch: ["classic/cyrom112.bin", "classic/flash_v1246.bin"], rom: ["cyrom112.bin", "boot.bin"],
-               flash: ["flash_v1246.bin", "flash.bin"], what: "the boot ROM and CyOS 1.2.46" },
+    classic: { fetch: ["classic/cyrom112.bin", "classic/flash_v1257.bin"], rom: ["cyrom112.bin", "boot.bin"],
+               flash: ["flash_v1257.bin", "flash_v1246.bin", "flash.bin"], what: "the boot ROM and CyOS 1.2.57" },
 };
+/* The Classic's CyOS versions in cybiko-roms: 1.2.57 (System Pack 57,
+ * installed once on 1.2.46 by the emulator; knows the memory card) and the
+ * 1.2.46 of MAME's dump */
+const CLASSIC_CYOS = { "1.2.57": "classic/flash_v1257.bin", "1.2.46": "classic/flash_v1246.bin" };
 /* A ROM set or a release, as a zip: take this model's boot ROM and flash out of it */
 async function unzip(data) {
     const out = {}, u16 = o => data[o] | data[o + 1] << 8, u32 = o => (u16(o) | u16(o + 2) << 16) >>> 0;
@@ -495,13 +507,16 @@ $("quick-btn").onclick = async () => {
     $("quick-btn").disabled = true;
     $("quick-ok").textContent = "fetching the firmware…";
     try {
-        const [rom, flash, upd] = await Promise.all([...d.fetch,
+        const cyos = classic ? $("quick-cyos").value : "";
+        const files = classic ? [d.fetch[0], CLASSIC_CYOS[cyos]] : d.fetch;
+        const [rom, flash, upd] = await Promise.all([...files,
             ...(ru ? ["cyos-updates/ccyphRU1.5.08r.boot"] : [])].map(fetchFile));
         if (rom.length !== 0x8000 || !flashOk(flash)) throw new Error("the files are not the right size");
         await store.set(pk("rom"), rom);
         await store.set(pk("flash"), flash);
         if (upd) await store.set(pk("boot"), upd);
-        log(`setup: ${d.what} fetched from ${SITE.filesPage}${upd ? ", with the Russian CyOS update" : ""}`);
+        if (classic) await store.set(pk("cyos"), cyos);
+        log(`setup: ${classic ? `the boot ROM and CyOS ${cyos}` : d.what} fetched from ${SITE.filesPage}${upd ? ", with the Russian CyOS update" : ""}`);
         $("quick-ok").textContent = "";
         $("setup").hidden = true;
         audioOn();
@@ -601,7 +616,12 @@ window.addEventListener("drop", e => {
 });
 /* the same through a file picker (phones have no drag and drop) */
 $("add-btn").onclick = () => $("add-file").click();
-$("add-file").onchange = () => { const list = Array.from($("add-file").files); $("add-file").value = ""; addFiles(list); };
+$("add-file").onchange = () => {
+    const list = [...mp3Fetched, ...Array.from($("add-file").files)];
+    $("add-file").value = "";
+    mp3Fetched = [];
+    addFiles(list);
+};
 
 /* An EZ Loader pack (.cap, .csu: the CD's installers, such as the MP3
  * cartridge software) holds the files to put on the Cybiko: unpack it, as
@@ -630,11 +650,6 @@ function unpack(name, data, quiet) {
 
 async function addFiles(files) {
     if (!worker) return;
-    if (classic) {
-        notice("The Classic keeps its files in its flash, and this emulator cannot put files there yet.");
-        log(`files: ${files.map(f => f.name).join(", ")} not copied: the Classic has no RAM disk`);
-        return;
-    }
     const apps = [];
     for (const f of files) {
         const data = f.data || new Uint8Array(await f.arrayBuffer());
@@ -643,7 +658,14 @@ async function addFiles(files) {
             apps.push(a);
         }
     }
-    if (apps.length) restart(apps);
+    if (!apps.length) return;
+    if (classic) {
+        /* into the flash through CyOS's console, while it runs */
+        notice(`Copying ${apps.map(a => a.name).join(", ")} into the Classic's flash…`, 0);
+        worker.postMessage({ t: "install", files: apps });
+        return;
+    }
+    restart(apps);
 }
 
 /* ---- backup: the RAM disk as ramdisk.bin (the board's and the desktop
@@ -659,6 +681,77 @@ function download(name, data) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+/* Another CyOS for the Classic: its flash from cybiko-roms in place of this
+ * one (each tab's Cybiko starts from it again: their files go) */
+$("cyos-btn").onclick = async () => {
+    const v = $("set-cyos").value;
+    if (!confirm(`Put CyOS ${v} on the Cybiko Classic? Its flash is replaced: CyOS and every file on it, in every tab. ` +
+                 "Download backup first to keep them.")) return;
+    $("cyos-btn").disabled = true;
+    try {
+        const flash = await fetchFile(CLASSIC_CYOS[v]);
+        if (!flashOk(flash)) throw new Error("not a Classic flash image");
+        await stopWorker(true);
+        for (const k of await store.keys())
+            if (k === pk("flash") || k.startsWith(pk("flash") + "#")) await store.del(k);
+        await store.set(pk("flash"), flash);
+        await store.set(pk("cyos"), v);
+        log(`setup: CyOS ${v} put on the Classic`);
+        $("settings").hidden = true;
+        boot();
+    } catch (e) {
+        notice(`Could not fetch CyOS ${v}: ${e.message}`, 0);
+    }
+    $("cyos-btn").disabled = false;
+};
+
+/* System Pack 57: CyOS 1.2.57 for the Classic, from Cybiko's own updater
+ * (cybiko-roms classic/Cybiko-AutoUpdate.exe), fetched once and kept */
+$("sp-btn").onclick = async () => {
+    if (!worker) return;
+    if (!confirm("Install CyOS 1.2.57 (System Pack 57) on this Classic? CyOS and its apps are replaced; " +
+                 "files of your own stay. The Cybiko restarts and the install takes a few minutes.")) return;
+    $("sp-btn").disabled = true;
+    try {
+        let exe = await store.get("sp57");
+        if (!exe) {
+            notice("Fetching System Pack 57 from cybiko-roms…", 0);
+            exe = await fetchFile("classic/Cybiko-AutoUpdate.exe");
+            await store.set("sp57", exe);
+        }
+        notice("Restarting the Cybiko to install CyOS 1.2.57…", 0);
+        restart([], { sysupdate: exe });
+    } catch (e) {
+        notice(`Could not fetch System Pack 57: ${e.message}`, 0);
+        log(`update: ${e.message}`);
+        $("sp-btn").disabled = false;
+    }
+};
+/* The MP3 player's own buttons (on its side on the real one) */
+for (const b of $("mp3-btns").querySelectorAll("button"))
+    b.onclick = () => worker && worker.postMessage({ t: "mp3btn", b: +b.dataset.b });
+
+/* The player's software for the Classic: MP3.app (cybiko-roms
+ * classic/) and its libraries MP3.dl and mp3_control.dl (classic/ too);
+ * any that cannot be fetched are picked by hand */
+const MP3C_SOFTWARE = ["MP3.dl", "mp3_control.dl", "MP3.app"];
+$("mp3-soft-btn").onclick = async () => {
+    if (!worker) return;
+    const got = [], missing = [];
+    for (const n of MP3C_SOFTWARE) {
+        try { got.push({ name: n, data: await fetchFile("classic/" + n) }); }
+        catch (e) { missing.push(n); log(`MP3 player: ${n} not fetched (${e.message})`); }
+    }
+    if (missing.length) {
+        mp3Fetched = got;
+        notice(`Pick ${missing.join(" and ")} (from the MP3 player's CD); ${got.map(f => f.name).join(", ") || "nothing"} came from ${SITE.filesPage} and goes in with them.`, 0);
+        $("add-file").click();
+        return;
+    }
+    addFiles(got);
+};
+let mp3Fetched = [];
+
 $("backup-btn").onclick = () => worker && worker.postMessage({ t: "getdisk" });
 $("restore-btn").onclick = () => $("restore-file").click();
 $("restore-file").onchange = async () => {
@@ -727,6 +820,7 @@ async function deleteFromCard(path) {
  * hand) does nothing there: it has to be on the Cybiko's disk. */
 const isSoftware = (name, data) => isPack(data) || /\.dl$/i.test(name) || /^mp3player\.app$/i.test(name);
 async function softwareOffCard() {
+    if (classic) return [];                  /* the player's card holds songs only; nothing to move */
     const card = await store.get(pk("card")) || [];
     const soft = card.filter(f => isSoftware(f.path.split("/").pop(), f.data));
     if (!soft.length) return [];
@@ -819,10 +913,11 @@ function claimSlot() {
 const slotKey = k => slot > 1 ? `${pk(k)}#${slot}` : pk(k);
 
 let id24 = 0;
-async function boot(apps) {
+/* extra.sysupdate: Cybiko-AutoUpdate.exe, to install System Pack 57 on a Classic */
+async function boot(apps, extra = {}) {
     if (!slot) slot = await claimSlot();
-    const [rom, base, flash, disk, boot] = await Promise.all(
-        [pk("rom"), pk("flash"), slotKey("flash"), slotKey("disk"), pk("boot")].map(k => store.get(k)));
+    const [rom, base, flash, disk, boot, mcard] = await Promise.all(
+        [pk("rom"), pk("flash"), slotKey("flash"), slotKey("disk"), pk("boot"), slotKey("mcard")].map(k => store.get(k)));
     if (!rom || !base) {
         /* no firmware yet: the device list goes with the setup (Settings is not reachable) */
         $("setup").append($("devices"));
@@ -844,10 +939,15 @@ async function boot(apps) {
     worker.onmessage = onWorker;
     worker.onerror = e => log(`worker error: ${e.message}`);
     const card = await store.get(pk("card")) || [];
+    /* the Classic's slot: the MP3 player (auto: when its card has files) or the memory card */
+    const cs = settings.classicSlot || "auto";
+    const mp3On = classic && (cs === "mp3" || (cs === "auto" && card.length > 0));
     const cartSoftware = !classic && settings.cartSoft && (settings.cart === "on" || (settings.cart !== "off" && card.length)) ? await mp3Software() : null;
     worker.postMessage({ t: "start", rom, flash: flash || base, disk: disk || null, apps: apps || [], card, cartSoftware,
                          boot: slot === 1 && boot ? boot : null, slot, prefix: prefixOf(profile), model: profile.model,
-                         diskSize: settings.disk << 20, id24, settings });
+                         diskSize: settings.disk << 20, id24, settings,
+                         mp3On, mcardOn: classic && !mp3On && (cs === "auto" || cs === "card"), mcard: mcard || null,
+                         sysupdate: classic && extra.sysupdate || null });
 }
 
 /* The MP3 cartridge's software (MP3.cap from its CD, in cybiko-roms),
@@ -890,13 +990,13 @@ function stopWorker(drop) {
     });
 }
 
-function restart(apps) {
+function restart(apps, extra) {
     const w = worker;
     worker = null;
     $("status").textContent = "restarting";
     if (apps && apps.length)
         notice(`Copying ${apps.map(a => a.name).join(", ")} to the Cybiko: it restarts to see them (CyOS reads its disk at power-on).`, 0);
-    const go = () => { w.terminate(); boot(apps); };
+    const go = () => { w.terminate(); boot(apps, extra); };
     const timer = setTimeout(() => { log("restart: the worker did not answer; restarting without the last save"); go(); }, 3000);
     w.onmessage = e => {
         if (e.data.t === "saved") { clearTimeout(timer); go(); } else onWorker(e);
@@ -954,6 +1054,28 @@ function onWorker(e) {
     case "status": {
         const r = m.radio;
         $("status").textContent = $("status").title = `${MODELS[profile.model]} · ID ${m.id} · Cybiko ${slot} · room ${settings.room} · relay ${m.relay} · radio ${r.sent} out, ${r.heard} in · ${m.speed}%`;
+        break;
+    }
+    case "mp3": $("mp3-btns").hidden = !m.on; break;
+    case "su": {
+        const busy = m.state === 1 || m.state === 2;
+        if (m.files) {
+            if (busy) notice(`Copying files into the Classic's flash: ${m.message}`, 0);
+            else if (m.state === 3) notice(`${m.message}. Apps show on the desktop once CyOS has looked again (or after a restart).`, 20000);
+            else notice(`Copying files failed: ${m.message || "see the log"}.`, 0);
+            break;
+        }
+        $("sp-btn").disabled = busy;
+        if (busy)
+            notice(`Installing CyOS 1.2.57 (System Pack 57), step ${m.step} of ${m.steps}: ${m.message}. ` +
+                   "It runs as fast as this computer can, about 6 minutes of Cybiko time; leave the keys alone.", 0);
+        else if (m.state === 3 && (store.set(pk("cyos"), "1.2.57"), true))
+            notice(m.already ? "This Cybiko already runs CyOS 1.2.57."
+                : `CyOS 1.2.57 is installed${m.retries ? ` (${m.retries} step(s) done again)` : ""}. ` +
+                  "The memory card (Settings) shows in the File Manager as Card Flash.", 30000);
+        else
+            notice(`Installing CyOS 1.2.57 failed: ${m.message || "see the log"}. The Cybiko keeps what it had; ` +
+                   "Download backup first if you want to try again from a known state.", 0);
         break;
     }
     case "saved": break;

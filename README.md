@@ -90,9 +90,12 @@ first screen too, while that model has no firmware yet). Each keeps its own
 firmware, files, settings and Cybiko ID; switching saves the one running
 and starts the other.
 
-**The Cybiko Classic** (the first Cybiko, CyOS 1.2.46) runs the dumps of
-MAME's `cybikov1` set: Start fetches `classic/cyrom112.bin` and
-`classic/flash_v1246.bin` from cybiko-roms, and "Use my own files instead"
+**The Cybiko Classic** (the first Cybiko) runs CyOS 1.2.57 by default:
+Start fetches MAME's `classic/cyrom112.bin` boot ROM and
+`classic/flash_v1257.bin` (System Pack 57 installed on MAME's 1.2.46 dump)
+from cybiko-roms. The CyOS choice there, or Settings, CyOS, "Put this CyOS on",
+takes MAME's own `classic/flash_v1246.bin` (CyOS 1.2.46) instead; that
+replaces the flash and its files. "Use my own files instead"
 takes them, `cybikov1.zip`, or a [ReBiko](https://github.com/RetroCodeRamen/rebiko)
 release zip (`roms/boot.bin`, `roms/flash.bin`). Its 512 KB DataFlash dump
 becomes a 1 MB one (the other half free space, as on Dragonfruit), and the
@@ -100,7 +103,39 @@ whole flash, CyOS's files with it, is saved in the browser as CyOS writes it;
 Download backup gives it as `flash_saved.bin`, the board's file. The
 keyboard is the Classic's own (digit keys, PC punctuation, no Menu), and the
 PC keys map one to one. The Classic has no RAM disk, MP3 cartridge or gate,
-so adding files, the software list and those settings are hidden for it.
+so the software list and those settings are hidden for it. **Add files to the
+Cybiko** (or dropping files on the page) copies them into its flash through
+CyOS's serial console while it runs, as Cybiko's PC software did
+(Dragonfruit's `cy_su_start_files`).
+
+**Classic: memory card and CyOS 1.2.57.** Settings → Slot picks what is in
+the Classic's slot: the memory card, the MP3 player, or nothing ("auto", the
+default: the MP3 player when its card has files, else the memory card). The
+memory card is the Cybiko 1Mb Memory Card: 256 KB RAM and 1 MB flash, the
+flash kept in the browser. CyOS 1.2.46 does not see it; CyOS 1.2.57 does.
+On a flash that still has 1.2.46, **Install CyOS 1.2.57** (next to
+Settings) keeps the files and fetches Cybiko's own System Pack 57
+updater, `classic/Cybiko-AutoUpdate.exe` from cybiko-roms, and installs it
+through CyOS's serial console, as Cybiko's AutoUpdate did (Dragonfruit's
+`cy_sysupdate.c`). It runs as fast as the computer can: about 6 minutes of
+Cybiko time, a few seconds to a minute in the browser. The File Manager then
+shows the card as Card Flash. How it all works:
+[Dragonfruit's notes](https://github.com/SovGVD/Dragonfruit-JC4827W543-esp32/blob/main/docs/cybiko-classic-modules.md).
+
+**Classic: the MP3 player (CY65P10).** With the MP3 player in the slot, its
+SmartMedia card is the card in Settings (MP3s, kept in the browser,
+read-only for the player) and the player's six buttons (back, play/pause,
+forward, stop, volume) show above the keyboard; they work without any app,
+as on the real player. On the Cybiko it needs CyOS 1.2.57 and the player's
+software: **Install the MP3 player's software** (under the keyboard) fetches
+`classic/MP3.app`, `classic/MP3.dl` and `classic/mp3_control.dl` from
+cybiko-roms and copies the three into the flash (a file that cannot be
+fetched is asked for instead).
+MP3 on the desktop then lists the card and plays, pauses, skips, seeks, sets
+the volume, repeat and shuffle, and shows each song's ID3 details. The
+player's own firmware was never dumped, so it is emulated from what MP3.dl
+and MP3.app send (Dragonfruit's `cy_mp3c.c`); its FM radio and voice recorder
+are not there.
 
 **Every tab is a Cybiko of its own.** The first tab is Cybiko 1, a second
 tab Cybiko 2, and so on, each with its own RAM disk and Cybiko ID (CyOS
