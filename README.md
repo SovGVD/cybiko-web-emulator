@@ -123,8 +123,9 @@ shows the card as Card Flash. How it all works:
 [Dragonfruit's notes](https://github.com/SovGVD/Dragonfruit-JC4827W543-esp32/blob/main/docs/cybiko-classic-modules.md).
 
 **Classic: the MP3 player (CY65P10).** With the MP3 player in the slot, its
-SmartMedia card is the card in Settings (MP3s, kept in the browser,
-read-only for the player) and the player's six buttons (back, play/pause,
+SmartMedia card is the card in Settings (MP3s and .app files, kept in the
+browser; CyOS runs apps from it, so an MXD clip made with cybiko-docs'
+Classic + Xtreme player plays with sound) and the player's six buttons (back, play/pause,
 forward, stop, volume) show above the keyboard; they work without any app,
 as on the real player. On the Cybiko it needs CyOS 1.2.57 and the player's
 software: **Install the MP3 player's software** (under the keyboard) fetches
